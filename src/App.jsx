@@ -141,9 +141,11 @@ const NAV = [
   { id: 'markers',      label: 'Biomarkers',  hint: '02' },
   { id: 'medications',  label: 'Medications', hint: '03' },
   { id: 'treatments',   label: 'Treatments',  hint: '04' },
-  { id: 'questions',    label: 'For Doctor',  hint: '05' },
-  { id: 'reports',      label: 'Reports',     hint: '06' },
-  { id: 'profile',      label: 'Profile',     hint: '07' }
+  { id: 'drinks',       label: 'Drinks',      hint: '05' },
+  { id: 'briefings',    label: 'Briefings',   hint: '06' },
+  { id: 'questions',    label: 'For Doctor',  hint: '07' },
+  { id: 'reports',      label: 'Reports',     hint: '08' },
+  { id: 'profile',      label: 'Profile',     hint: '09' }
 ]
 
 function Sidebar({ tab, setTab, profile }) {
@@ -1451,6 +1453,94 @@ function Field({ label, children }) {
 }
 
 // =====================================================================
+// DRINKS TAB — ranking card (feature 1)
+// =====================================================================
+const TIER_META = {
+  1:  { color: C.forest,     bg: `${C.forest}18`,     borderColor: `${C.forest}40`,     badge: 'TIER 1 · BEST'    },
+  2:  { color: '#6E8A2A',    bg: 'rgba(110,138,42,.1)', borderColor: 'rgba(110,138,42,.3)', badge: 'TIER 2 · BEER'   },
+  3:  { color: C.amber,      bg: `${C.amber}12`,      borderColor: `${C.amber}40`,      badge: 'TIER 3 · LIMIT'  },
+  99: { color: C.terracotta, bg: `${C.terracotta}12`, borderColor: `${C.terracotta}40`, badge: 'OFF THE TABLE'    },
+}
+
+function RankingCard({ ranking }) {
+  if (!ranking) {
+    return (
+      <div className="card" style={{ padding: 32, color: C.muted, fontStyle: 'italic', textAlign: 'center' }}>
+        No ranking data yet.
+      </div>
+    )
+  }
+  const tiers = [...ranking.tiers].sort((a, b) => a.tier === 99 ? 1 : b.tier === 99 ? -1 : a.tier - b.tier)
+
+  return (
+    <div className="card" style={{ padding: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24, paddingBottom: 20, borderBottom: `1px solid ${C.rule}` }}>
+        <div>
+          <div className="label-eyebrow" style={{ color: C.amber }}>Current ranking · Edition {ranking.edition}</div>
+          <h2 className="display" style={{ fontSize: 28, margin: '4px 0 0' }}>What to drink.</h2>
+        </div>
+        <div className="mono" style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', textAlign: 'right' }}>
+          Ranked {fmtDate(ranking.ranked_on)}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+        {tiers.map(tier => {
+          const meta = TIER_META[tier.tier] || TIER_META[99]
+          return (
+            <div key={tier.tier} style={{ borderRadius: 2, border: `1px solid ${meta.borderColor}`, background: meta.bg, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${meta.borderColor}` }}>
+                <span className="pill" style={{ background: meta.color, color: C.cream, border: 'none', fontSize: 10, letterSpacing: '0.12em' }}>{meta.badge}</span>
+                <span style={{ fontSize: 13, color: meta.color, fontWeight: 500 }}>{tier.label}</span>
+              </div>
+              <div style={{ padding: '8px 0' }}>
+                {tier.picks.map((pick, i) => (
+                  <div key={i} style={{ padding: '8px 16px', display: 'flex', alignItems: 'baseline', gap: 16, borderBottom: i < tier.picks.length - 1 ? `1px solid ${meta.borderColor}60` : 'none' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>{pick.brand}</span>
+                      <span style={{ fontSize: 13, color: C.ink2, marginLeft: 8 }}>{pick.variety}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.muted, maxWidth: 360, textAlign: 'right', lineHeight: 1.4 }}>{pick.why}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {ranking.rationale && (
+        <div style={{ padding: 16, background: C.paper2, borderRadius: 2, borderLeft: `3px solid ${C.rule}` }}>
+          <div className="label-eyebrow" style={{ marginBottom: 6 }}>Rationale</div>
+          <p style={{ fontSize: 13, color: C.ink2, lineHeight: 1.6, margin: 0 }}>{ranking.rationale}</p>
+        </div>
+      )}
+
+      {ranking.inputs_summary && (
+        <div style={{ marginTop: 12, padding: '10px 16px', background: `${C.muted}08`, borderRadius: 2, fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>Inputs: </span>
+          {ranking.inputs_summary}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DrinksTab({ data }) {
+  const latestRanking = data.drinkRankings?.[0] || null
+  return (
+    <>
+      <PageHeader
+        eyebrow="05 — Drinks"
+        title="The drink guide."
+        subtitle="Current ranking of what to reach for — built from pancreatitis research and your labs."
+      />
+      <RankingCard ranking={latestRanking} />
+    </>
+  )
+}
+
+// =====================================================================
 // MAIN APP
 // =====================================================================
 export default function App() {
@@ -1462,7 +1552,7 @@ export default function App() {
   const loadAll = async () => {
     try {
       setError(null)
-      const [profile, scorecard, history, panels, results, markers, medications, doses, treatments, events, questions, vitals, reports, activeMeds] = await Promise.all([
+      const [profile, scorecard, history, panels, results, markers, medications, doses, treatments, events, questions, vitals, reports, activeMeds, drinkRankings, briefings, alcoholLog, drinkTypes] = await Promise.all([
         db.select('profiles', { id: `eq.${USER_ID}` }),
         db.select('v_marker_scorecard', { user_id: `eq.${USER_ID}`, order: 'display_order' }),
         db.select('v_latest_marker_values', { user_id: `eq.${USER_ID}`, order: 'collected_on.asc' }),
@@ -1476,7 +1566,11 @@ export default function App() {
         db.select('doctor_questions', { user_id: `eq.${USER_ID}`, order: 'priority.asc,created_at.desc' }),
         db.select('vitals_log', { user_id: `eq.${USER_ID}`, order: 'recorded_on.desc' }),
         db.select('reports', { user_id: `eq.${USER_ID}`, order: 'generated_on.desc', limit: 20 }),
-        db.select('v_active_medications', { user_id: `eq.${USER_ID}` })
+        db.select('v_active_medications', { user_id: `eq.${USER_ID}` }),
+        db.select('drink_rankings', { order: 'ranked_on.desc' }),
+        db.select('briefings', { order: 'briefing_date.desc' }),
+        db.select('alcohol_log', { user_id: `eq.${USER_ID}`, order: 'log_date.desc', limit: 60 }),
+        db.select('drink_types', { order: 'category,name' })
       ])
 
       const histByCode = {}
@@ -1495,7 +1589,8 @@ export default function App() {
       setData({
         profile: profile[0] || {},
         scorecard, history: histByCode, markerHistory,
-        panels, results, markers, medications, doses, treatments, events, questions, vitals, reports, activeMeds
+        panels, results, markers, medications, doses, treatments, events, questions, vitals, reports, activeMeds,
+        drinkRankings, briefings, alcoholLog, drinkTypes
       })
     } catch (e) {
       console.error('Data load failed', e)
@@ -1536,6 +1631,7 @@ export default function App() {
           {tab === 'marker_detail' && markerCode && <MarkerDetail data={data} code={markerCode} setTab={setTab} />}
           {tab === 'medications' && <Medications data={data} />}
           {tab === 'treatments' && <Treatments data={data} />}
+          {tab === 'drinks' && <DrinksTab data={data} />}
           {tab === 'questions' && <Questions data={data} refresh={loadAll} />}
           {tab === 'reports' && <Reports data={data} refresh={loadAll} />}
           {tab === 'profile' && <Profile data={data} refresh={loadAll} />}
