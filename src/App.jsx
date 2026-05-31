@@ -1646,6 +1646,7 @@ export default function App() {
   const [markerCode, setMarkerCode] = useState(null)
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const loadAll = async () => {
     try {
@@ -1718,11 +1719,43 @@ export default function App() {
     )
   }
 
+  const briefingDueDate = useMemo(() => {
+    const bs = data?.briefings
+    if (!bs || bs.length === 0) return null
+    const maxDate = bs.reduce((m, b) => b.briefing_date > m ? b.briefing_date : m, bs[0].briefing_date)
+    const d = new Date(maxDate + 'T00:00:00')
+    d.setDate(d.getDate() + 7)
+    return d
+  }, [data])
+
+  const briefingOverdue = briefingDueDate && new Date() >= briefingDueDate
+
   return (
     <div className="zapp-root" style={{ display: 'flex' }}>
       <style>{STYLE}</style>
       <Sidebar tab={tab} setTab={(t) => { setTab(t); setMarkerCode(null) }} profile={data.profile} />
       <main style={{ flex: 1, minWidth: 0 }}>
+        {briefingOverdue && !bannerDismissed && (
+          <div style={{
+            background: C.amber, color: C.cream, padding: '12px 48px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+            fontSize: 14, fontWeight: 500, borderBottom: `1px solid ${C.terracotta}40`
+          }}>
+            <span>
+              Weekly briefing due — open Claude and say{' '}
+              <span className="mono" style={{ fontSize: 13, background: 'rgba(0,0,0,0.15)', padding: '1px 6px', borderRadius: 2 }}>
+                run my briefing
+              </span>
+            </span>
+            <button
+              onClick={() => setBannerDismissed(true)}
+              style={{ background: 'none', border: 'none', color: C.cream, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, opacity: 0.8 }}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 48px' }}>
           {tab === 'overview' && <Dashboard data={data} setTab={setTab} setMarkerCode={setMarkerCode} />}
           {tab === 'markers' && <MarkersList data={data} setTab={setTab} setMarkerCode={setMarkerCode} />}
