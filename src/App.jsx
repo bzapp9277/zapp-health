@@ -1541,6 +1541,104 @@ function DrinksTab({ data }) {
 }
 
 // =====================================================================
+// BRIEFINGS TAB (feature 2)
+// =====================================================================
+function BriefingsTab({ data }) {
+  const [expandedId, setExpandedId] = useState(null)
+  const briefings = data.briefings || []
+  const rankings = data.drinkRankings || []
+
+  if (briefings.length === 0) {
+    return (
+      <>
+        <PageHeader eyebrow="06 — Briefings" title="The briefing archive." subtitle="Weekly digests with reading lists and the active ranking." />
+        <div className="card" style={{ padding: 32, color: C.muted, fontStyle: 'italic', textAlign: 'center' }}>No briefings yet.</div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="06 — Briefings"
+        title="The briefing archive."
+        subtitle="Weekly digests — research, reading, and which ranking was active."
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {briefings.map(b => {
+          const isOpen = expandedId === b.id
+          const linkedRanking = rankings.find(r => r.id === b.ranking_id)
+          return (
+            <div key={b.id} className="card" style={{ overflow: 'hidden' }}>
+              <div
+                onClick={() => setExpandedId(isOpen ? null : b.id)}
+                style={{ padding: '20px 24px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 20 }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(237,231,219,0.5)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
+                    <span className="label-eyebrow" style={{ color: C.amber }}>Edition {b.edition}</span>
+                    <span className="mono" style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' }}>{fmtDate(b.briefing_date)}</span>
+                    {linkedRanking && (
+                      <span className="pill" style={{ background: `${C.forest}10`, color: C.forest, border: `1px solid ${C.forest}30`, fontSize: 10 }}>
+                        Ranking Ed.{linkedRanking.edition}
+                      </span>
+                    )}
+                  </div>
+                  {b.summary && <p style={{ fontSize: 14, color: C.ink2, lineHeight: 1.55, margin: 0 }}>{b.summary}</p>}
+                </div>
+                <span style={{ fontSize: 16, color: C.muted, flexShrink: 0, marginTop: 2 }}>{isOpen ? '▲' : '▼'}</span>
+              </div>
+
+              {isOpen && (
+                <div style={{ padding: '0 24px 24px', borderTop: `1px solid ${C.rule}` }}>
+                  {b.reading_list && b.reading_list.length > 0 && (
+                    <div style={{ marginTop: 20 }}>
+                      <div className="label-eyebrow" style={{ marginBottom: 12 }}>Reading list</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {b.reading_list.map((item, i) => {
+                          const isAcademic = item.kind === 'academic'
+                          const badgeColor = isAcademic ? C.ink : C.muted
+                          return (
+                            <div key={i} style={{ padding: '12px 16px', background: C.paper2, borderRadius: 2, borderLeft: `3px solid ${isAcademic ? C.ink : C.rule}` }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: item.note ? 6 : 0 }}>
+                                <span className="pill" style={{ background: isAcademic ? `${C.ink}10` : `${C.muted}10`, color: badgeColor, border: `1px solid ${badgeColor}30`, fontSize: 9, flexShrink: 0 }}>
+                                  {isAcademic ? 'Academic' : 'Popular'}
+                                </span>
+                                <div style={{ minWidth: 0 }}>
+                                  {item.url
+                                    ? <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: C.ink, fontWeight: 500, textDecoration: 'underline', textDecorationColor: `${C.amber}60`, wordBreak: 'break-word' }}>{item.title}</a>
+                                    : <span style={{ fontSize: 14, fontWeight: 500 }}>{item.title}</span>
+                                  }
+                                  {item.source && <span style={{ fontSize: 12, color: C.muted, marginLeft: 8 }}>{item.source}</span>}
+                                </div>
+                              </div>
+                              {item.note && <p style={{ margin: 0, fontSize: 12, color: C.muted, lineHeight: 1.5, paddingLeft: 2 }}>{item.note}</p>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {linkedRanking && (
+                    <div style={{ marginTop: 16, padding: '10px 16px', background: `${C.forest}08`, borderRadius: 2, fontSize: 13, color: C.ink2, borderLeft: `3px solid ${C.forest}40` }}>
+                      <span className="label-eyebrow" style={{ color: C.forest, marginRight: 8 }}>Active ranking</span>
+                      Edition {linkedRanking.edition} — ranked {fmtDate(linkedRanking.ranked_on)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
+// =====================================================================
 // MAIN APP
 // =====================================================================
 export default function App() {
@@ -1632,6 +1730,7 @@ export default function App() {
           {tab === 'medications' && <Medications data={data} />}
           {tab === 'treatments' && <Treatments data={data} />}
           {tab === 'drinks' && <DrinksTab data={data} />}
+          {tab === 'briefings' && <BriefingsTab data={data} />}
           {tab === 'questions' && <Questions data={data} refresh={loadAll} />}
           {tab === 'reports' && <Reports data={data} refresh={loadAll} />}
           {tab === 'profile' && <Profile data={data} refresh={loadAll} />}
