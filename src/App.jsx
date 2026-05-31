@@ -1526,16 +1526,227 @@ function RankingCard({ ranking }) {
   )
 }
 
-function DrinksTab({ data }) {
+// =====================================================================
+// DRINK LOG FORM + LIST (feature 4)
+// =====================================================================
+const TODAY_ISO = new Date().toISOString().slice(0, 10)
+
+function calcTotals(picks) {
+  let ethanol = 0, std = 0, sugar = 0, carbs = 0, cal = 0
+  for (const p of picks) {
+    const g = (p.serving_oz || 0) * 29.5735 * ((p.abv || 0) / 100) * 0.789
+    ethanol += g
+    std += g / 14
+    sugar += p.sugar_g || 0
+    carbs += p.carbs_g || 0
+    cal += p.calories || 0
+  }
+  return {
+    total_ethanol_g: Number(ethanol.toFixed(2)),
+    total_std_drinks: Number(std.toFixed(2)),
+    total_sugar_g: Number(sugar.toFixed(2)),
+    total_carbs_g: Number(carbs.toFixed(2)),
+    total_calories: Number(cal.toFixed(0))
+  }
+}
+
+function DrinkLogForm({ drinkTypes, onSaved }) {
+  const [logDate, setLogDate] = useState(TODAY_ISO)
+  const [picks, setPicks] = useState([])
+  const [selectedType, setSelectedType] = useState('')
+  const [qty, setQty] = useState(1)
+  const [context, setContext] = useState('')
+  const [water, setWater] = useState('')
+  const [pain, setPain] = useState('')
+  const [backPain, setBackPain] = useState(false)
+  const [nausea, setNausea] = useState(false)
+  const [painFatty, setPainFatty] = useState(false)
+  const [sugarCrash, setSugarCrash] = useState(false)
+  const [sleep, setSleep] = useState('')
+  const [energy, setEnergy] = useState('')
+  const [journal, setJournal] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const addPick = () => {
+    const dt = drinkTypes.find(t => t.id === selectedType)
+    if (!dt) return
+    setPicks(prev => [...prev, {
+      drink_type_id: dt.id, name: dt.name,
+      serving_oz: dt.default_serving_oz, abv: dt.abv,
+      sugar_g: dt.sugar_g, carbs_g: dt.carbs_g, calories: dt.calories,
+      qty
+    }])
+    setSelectedType('')
+    setQty(1)
+  }
+
+  const removePick = (i) => setPicks(prev => prev.filter((_, idx) => idx !== i))
+
+  const totals = calcTotals(picks.flatMap(p => Array.from({ length: p.qty }, () => p)))
+
+  const save = async () => {
+    if (picks.length === 0) return
+    setSaving(true)
+    try {
+      await db.insert('alcohol_log', {
+        user_id: USER_ID,
+        log_date: logDate,
+        drinks: picks,
+        ...totals,
+        context: context || null,
+        water_glasses: water ? Number(water) : null,
+        abdominal_pain_0_10: pain !== '' ? Number(pain) : null,
+        back_pain: backPain || null,
+        nausea: nausea || null,
+        pain_after_fatty_food: painFatty || null,
+        sugar_crash: sugarCrash || null,
+        sleep_quality_1_5: sleep ? Number(sleep) : null,
+        energy_next_am_1_5: energy ? Number(energy) : null,
+        journal: journal || null
+      })
+      setPicks([]); setContext(''); setWater(''); setPain('');
+      setBackPain(false); setNausea(false); setPainFatty(false); setSugarCrash(false);
+      setSleep(''); setEnergy(''); setJournal('');
+      setSaved(true); setTimeout(() => setSaved(false), 2500)
+      onSaved()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const categories = [...new Set(drinkTypes.map(t => t.category))].sort()
+
+  return (
+    <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+      <div className="label-eyebrow" style={{ marginBottom: 16 }}>Log a day</div>
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
+        <Field label="Date">
+          <input className="input" type="date" value={logDate} onChange={e => setLogDate(e.target.value)} style={{ width: 160 }} />
+        </Field>
+        <Field label="Drink">
+          <select className="input" value={selectedType} onChange={e => setSelectedType(e.target.value)} style={{ width: 240 }}>
+            <option value="">Pick a drink…</option>
+            {categories.map(cat => (
+              <optgroup key={cat} label={cat.replace(/_/g, ' ')}>
+                {drinkTypes.filter(t => t.category === cat).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </Field>
+        <Field label="Qty">
+          <input className="input" type="number" min={1} max={10} value={qty} onChange={e => setQty(Number(e.target.value))} style={{ width: 72 }} />
+        </Field>
+        <button className="btn btn-ghost" onClick={addPick} disabled={!selectedType} style={{ marginBottom: 1 }}>Add</button>
+      </div>
+
+      {picks.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {picks.map((p, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0', borderBottom: `1px solid ${C.rule}60`, fontSize: 14 }}>
+              <span style={{ flex: 1 }}>{p.qty > 1 && <span className="mono" style={{ marginRight: 6, color: C.amber }}>{p.qty}×</span>}{p.name}</span>
+              <span className="mono" style={{ fontSize: 11, color: C.muted }}>
+                {(calcTotals(Array.from({ length: p.qty }, () => p)).total_std_drinks).toFixed(1)} std · {Math.round(calcTotals(Array.from({ length: p.qty }, () => p)).total_calories)} kcal
+              </span>
+              <button onClick={() => removePick(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+            </div>
+          ))}
+          <div style={{ marginTop: 8, display: 'flex', gap: 20, fontSize: 12, color: C.muted }}>
+            <span className="mono">{totals.total_std_drinks.toFixed(1)} std drinks</span>
+            <span className="mono">{totals.total_ethanol_g.toFixed(0)} g ethanol</span>
+            <span className="mono">{totals.total_carbs_g.toFixed(0)} g carbs</span>
+            <span className="mono">{Math.round(totals.total_calories)} kcal</span>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
+        <Field label="Context / occasion"><input className="input" placeholder="poker night, dinner…" value={context} onChange={e => setContext(e.target.value)} /></Field>
+        <Field label="Water glasses"><input className="input" type="number" min={0} max={20} value={water} onChange={e => setWater(e.target.value)} /></Field>
+        <Field label="Abdominal pain 0-10"><input className="input" type="number" min={0} max={10} value={pain} onChange={e => setPain(e.target.value)} /></Field>
+        <Field label="Sleep quality 1-5"><input className="input" type="number" min={1} max={5} value={sleep} onChange={e => setSleep(e.target.value)} /></Field>
+        <Field label="Energy next AM 1-5"><input className="input" type="number" min={1} max={5} value={energy} onChange={e => setEnergy(e.target.value)} /></Field>
+        <Field label="Symptoms">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 4 }}>
+            {[['Back pain', backPain, setBackPain], ['Nausea', nausea, setNausea], ['Pain after fatty food', painFatty, setPainFatty], ['Sugar crash', sugarCrash, setSugarCrash]].map(([lbl, val, set]) => (
+              <label key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: C.ink2, cursor: 'pointer' }}>
+                <input type="checkbox" checked={val} onChange={e => set(e.target.checked)} />{lbl}
+              </label>
+            ))}
+          </div>
+        </Field>
+      </div>
+      <Field label="Journal note">
+        <textarea className="input" rows={2} placeholder="How did it go?" value={journal} onChange={e => setJournal(e.target.value)} />
+      </Field>
+      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving || picks.length === 0}>
+          {saving ? 'Saving…' : 'Save entry'}
+        </button>
+        {saved && <span className="mono" style={{ fontSize: 11, color: C.forest }}>SAVED</span>}
+      </div>
+    </div>
+  )
+}
+
+function AlcoholLogList({ alcoholLog }) {
+  const recent = (alcoholLog || []).slice(0, 14)
+  if (recent.length === 0) return (
+    <div style={{ color: C.muted, fontStyle: 'italic', fontSize: 13, padding: '12px 0' }}>No entries yet — log your first day above.</div>
+  )
+  return (
+    <div className="card" style={{ overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 80px 80px 80px 80px', padding: '10px 20px', borderBottom: `1px solid ${C.rule}`, background: 'rgba(237,231,219,0.4)' }}>
+        {['Date', 'Drinks', 'Std', 'Ethanol', 'Carbs', 'kcal'].map((h, i) => (
+          <div key={h} className="label-eyebrow" style={{ textAlign: i > 1 ? 'right' : 'left' }}>{h}</div>
+        ))}
+      </div>
+      {recent.map(row => {
+        const drinks = Array.isArray(row.drinks) ? row.drinks : []
+        const names = drinks.map(d => (d.qty > 1 ? `${d.qty}× ` : '') + (d.name || '')).join(', ')
+        return (
+          <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 80px 80px 80px 80px', padding: '10px 20px', borderBottom: `1px solid ${C.rule}60`, fontSize: 13, alignItems: 'center' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(237,231,219,0.4)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div className="mono" style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' }}>{fmtDate(row.log_date, { month: 'short', day: 'numeric' })}</div>
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8, color: C.ink2 }}>{names || '—'}</div>
+            <div className="num" style={{ textAlign: 'right', fontSize: 15 }}>{row.total_std_drinks != null ? Number(row.total_std_drinks).toFixed(1) : '—'}</div>
+            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>{row.total_ethanol_g != null ? Math.round(row.total_ethanol_g) + 'g' : '—'}</div>
+            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>{row.total_carbs_g != null ? Number(row.total_carbs_g).toFixed(0) + 'g' : '—'}</div>
+            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>{row.total_calories != null ? Math.round(row.total_calories) : '—'}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function DrinksTab({ data, refresh }) {
   const latestRanking = data.drinkRankings?.[0] || null
   return (
     <>
       <PageHeader
         eyebrow="05 — Drinks"
         title="The drink guide."
-        subtitle="Current ranking of what to reach for — built from pancreatitis research and your labs."
+        subtitle="Current ranking, daily log, and symptom tracking."
       />
       <RankingCard ranking={latestRanking} />
+
+      <div style={{ marginTop: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <div className="label-eyebrow">Daily log</div>
+            <h2 className="display" style={{ fontSize: 24, marginTop: 4 }}>Log a drinking day</h2>
+          </div>
+        </div>
+        <DrinkLogForm drinkTypes={data.drinkTypes || []} onSaved={refresh} />
+        <h3 className="display" style={{ fontSize: 20, marginBottom: 12 }}>Recent entries</h3>
+        <AlcoholLogList alcoholLog={data.alcoholLog} />
+      </div>
     </>
   )
 }
@@ -1762,7 +1973,7 @@ export default function App() {
           {tab === 'marker_detail' && markerCode && <MarkerDetail data={data} code={markerCode} setTab={setTab} />}
           {tab === 'medications' && <Medications data={data} />}
           {tab === 'treatments' && <Treatments data={data} />}
-          {tab === 'drinks' && <DrinksTab data={data} />}
+          {tab === 'drinks' && <DrinksTab data={data} refresh={loadAll} />}
           {tab === 'briefings' && <BriefingsTab data={data} />}
           {tab === 'questions' && <Questions data={data} refresh={loadAll} />}
           {tab === 'reports' && <Reports data={data} refresh={loadAll} />}
