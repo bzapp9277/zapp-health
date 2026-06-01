@@ -1855,19 +1855,21 @@ const TODAY_ISO = new Date().toISOString().slice(0, 10)
 function calcTotals(picks) {
   let ethanol = 0, std = 0, sugar = 0, carbs = 0, cal = 0
   for (const p of picks) {
-    const g = (p.serving_oz || 0) * 29.5735 * ((p.abv || 0) / 100) * 0.789
+    const servOz = Number(p.serving_oz) || 0
+    const abv    = Number(p.abv)        || 0
+    const g = servOz * 29.5735 * (abv / 100) * 0.789
     ethanol += g
-    std += g / 14
-    sugar += p.sugar_g || 0
-    carbs += p.carbs_g || 0
-    cal += p.calories || 0
+    std     += g / 14
+    sugar   += Number(p.sugar_g)  || 0
+    carbs   += Number(p.carbs_g)  || 0
+    cal     += Number(p.calories) || 0
   }
   return {
-    total_ethanol_g: Number(ethanol.toFixed(2)),
+    total_ethanol_g:  Number(ethanol.toFixed(2)),
     total_std_drinks: Number(std.toFixed(2)),
-    total_sugar_g: Number(sugar.toFixed(2)),
-    total_carbs_g: Number(carbs.toFixed(2)),
-    total_calories: Number(cal.toFixed(0))
+    total_sugar_g:    Number(sugar.toFixed(2)),
+    total_carbs_g:    Number(carbs.toFixed(2)),
+    total_calories:   Number(cal.toFixed(0))
   }
 }
 
@@ -1888,6 +1890,7 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
   const [journal, setJournal] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   const addPick = () => {
     const dt = drinkTypes.find(t => t.id === selectedType)
@@ -1909,6 +1912,7 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
   const save = async () => {
     if (picks.length === 0) return
     setSaving(true)
+    setSaveError(null)
     try {
       await db.insert('alcohol_log', {
         user_id: USER_ID,
@@ -1931,6 +1935,8 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
       setSleep(''); setEnergy(''); setJournal('');
       setSaved(true); setTimeout(() => setSaved(false), 2500)
       onSaved()
+    } catch (err) {
+      setSaveError(err.message || 'Save failed — check your entries and try again.')
     } finally {
       setSaving(false)
     }
@@ -2003,11 +2009,12 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
       <Field label="Journal note">
         <textarea className="input" rows={2} placeholder="How did it go?" value={journal} onChange={e => setJournal(e.target.value)} />
       </Field>
-      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button className="btn btn-primary" onClick={save} disabled={saving || picks.length === 0}>
           {saving ? 'Saving…' : 'Save entry'}
         </button>
         {saved && <span className="mono" style={{ fontSize: 11, color: C.forest }}>SAVED</span>}
+        {saveError && <span style={{ fontSize: 12, color: C.terracotta }}>{saveError}</span>}
       </div>
     </div>
   )
