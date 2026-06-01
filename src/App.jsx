@@ -5,15 +5,22 @@ import {
   Tooltip, ReferenceArea, ReferenceLine
 } from 'recharts'
 import {
-  ChevronRight, Plus, Mail, Save, Lock
+  ChevronRight, Plus, Mail, Save, LogOut
 } from 'lucide-react'
+import { createClient as _sbCreate } from '@supabase/supabase-js'
 
 // =====================================================================
-// CONFIG — single-user, no auth, anon key only
+// CONFIG — reads from Vite env vars (set in .env.local / Vercel)
 // =====================================================================
-const SUPABASE_URL = 'https://kizrdaifculzighfngqz.supabase.co'
-const ANON_KEY = 'sb_publishable_BOfw-nTZygZBTHyuVB_KXQ_OiFYHfLt'
-const USER_ID = 'eb3d4470-3f8b-436a-94db-783d9a744491'  // Brad's hardcoded user_id
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const ANON_KEY     = import.meta.env.VITE_SUPABASE_ANON_KEY
+const USER_ID = 'eb3d4470-3f8b-436a-94db-783d9a744491'
+
+// Auth client — for magic-link login, session management, sign-out
+const authClient = _sbCreate(SUPABASE_URL, ANON_KEY)
+
+// Bearer token used in data API calls — updated to session JWT on login
+let _token = ANON_KEY
 
 // =====================================================================
 // API LAYER — direct fetch to Supabase REST with anon key
@@ -32,7 +39,7 @@ async function apiCall(method, path, body) {
     method,
     headers: {
       'apikey': ANON_KEY,
-      'Authorization': `Bearer ${ANON_KEY}`,
+      'Authorization': `Bearer ${_token}`,
       'Content-Type': 'application/json',
       'Prefer': method === 'POST' || method === 'PATCH' ? 'return=representation' : ''
     },
@@ -149,7 +156,7 @@ const NAV = [
   { id: 'profile',      label: 'Profile',     hint: '09' }
 ]
 
-function Sidebar({ tab, setTab, profile }) {
+function Sidebar({ tab, setTab, profile, onSignOut }) {
   return (
     <aside style={{
       width: 256, flexShrink: 0, padding: '32px 24px',
@@ -183,9 +190,17 @@ function Sidebar({ tab, setTab, profile }) {
         <div className="display" style={{ fontSize: 16, color: C.ink2, lineHeight: 1.2, letterSpacing: '-0.02em' }}>
           {profile?.full_name || ''}
         </div>
-        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.muted }}>
-          <Lock size={10} /> No auth · single-user mode
-        </div>
+        <button
+          onClick={onSignOut}
+          style={{
+            marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontSize: 11, color: C.muted, background: 'none', border: 'none',
+            cursor: 'pointer', padding: 0, fontFamily: 'inherit', letterSpacing: '0.06em',
+            textTransform: 'uppercase'
+          }}
+        >
+          <LogOut size={11} /> Sign out
+        </button>
       </div>
     </aside>
   )
@@ -2151,6 +2166,78 @@ function BriefingsTab({ data }) {
 }
 
 // =====================================================================
+// LOGIN SCREEN
+// =====================================================================
+function LoginScreen() {
+  const [email, setEmail] = useState('brjack2177@gmail.com')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const sendLink = async () => {
+    setSending(true); setErr(null)
+    try {
+      const { error } = await authClient.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin }
+      })
+      if (error) throw error
+      setSent(true)
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="zapp-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <style>{STYLE}</style>
+      {!sent ? (
+        <div className="card" style={{ padding: 40, maxWidth: 400, width: '100%', margin: '0 24px' }}>
+          <div className="label-eyebrow" style={{ color: C.amber, marginBottom: 4 }}>Personal Health Ledger</div>
+          <h1 className="display" style={{ fontSize: 44, lineHeight: 1, margin: '4px 0 28px' }}>
+            Zapp<span style={{ color: C.amber }}>.</span>
+          </h1>
+          <div style={{ marginBottom: 16 }}>
+            <div className="label-eyebrow" style={{ marginBottom: 6 }}>Email</div>
+            <input
+              className="input"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !sending && sendLink()}
+              autoFocus
+            />
+          </div>
+          {err && <div style={{ marginBottom: 12, fontSize: 13, color: C.terracotta }}>{err}</div>}
+          <button
+            className="btn btn-primary"
+            onClick={sendLink}
+            disabled={sending || !email}
+            style={{ width: '100%' }}
+          >
+            {sending ? 'Sending…' : 'Send me a login link'}
+          </button>
+          <p style={{ marginTop: 16, fontSize: 12, color: C.muted, lineHeight: 1.5, textAlign: 'center' }}>
+            A one-time link will be sent to your inbox. No password needed.
+          </p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 40, maxWidth: 400, width: '100%', margin: '0 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
+          <h2 className="display" style={{ fontSize: 28, marginBottom: 12 }}>Check your inbox</h2>
+          <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6 }}>
+            A login link was sent to <strong>{email}</strong>.<br />
+            Tap it to sign in — it expires in 1 hour.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =====================================================================
 // MAIN APP
 // =====================================================================
 export default function App() {
@@ -2159,6 +2246,8 @@ export default function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
+  // session: undefined = checking, null = not logged in, object = logged in
+  const [session, setSession] = useState(undefined)
 
   const loadAll = async () => {
     try {
@@ -2210,7 +2299,35 @@ export default function App() {
     }
   }
 
-  useEffect(() => { loadAll() }, [])
+  // Auth: listen for session changes (fires immediately with INITIAL_SESSION)
+  useEffect(() => {
+    const { data: { subscription } } = authClient.auth.onAuthStateChange((_event, sess) => {
+      _token = sess?.access_token ?? ANON_KEY
+      setSession(sess ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // Data: load whenever we get a valid session
+  useEffect(() => {
+    if (session) loadAll()
+  }, [session])
+
+  const handleSignOut = async () => {
+    await authClient.auth.signOut()
+    _token = ANON_KEY
+    setData(null)
+    setSession(null)
+  }
+
+  // Auth gate
+  if (session === undefined) return (
+    <div className="zapp-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <style>{STYLE}</style>
+      <span className="display" style={{ fontSize: 20, color: C.muted, fontStyle: 'italic' }}>Loading…</span>
+    </div>
+  )
+  if (!session) return <LoginScreen />
 
   if (error) {
     return (
@@ -2246,7 +2363,7 @@ export default function App() {
   return (
     <div className="zapp-root" style={{ display: 'flex' }}>
       <style>{STYLE}</style>
-      <Sidebar tab={tab} setTab={(t) => { setTab(t); setMarkerCode(null) }} profile={data.profile} />
+      <Sidebar tab={tab} setTab={(t) => { setTab(t); setMarkerCode(null) }} profile={data.profile} onSignOut={handleSignOut} />
       <main style={{ flex: 1, minWidth: 0 }}>
         {briefingOverdue && !bannerDismissed && (
           <div style={{
