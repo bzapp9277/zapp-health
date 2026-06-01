@@ -583,7 +583,7 @@ function MarkersList({ data, setTab, setMarkerCode }) {
 
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '4fr 2fr 2fr 3fr 1fr', padding: '12px 20px', borderBottom: `1px solid ${C.rule}`, background: 'rgba(237,231,219,0.4)' }}>
-          {['Marker', 'Latest', 'Reference', 'Trend', 'Δ'].map((h, i) => (
+          {['Marker', 'Latest', 'Reference', 'Trend', 'Δ lifetime'].map((h, i) => (
             <div key={h} className="label-eyebrow" style={{ textAlign: i === 1 || i === 2 || i === 4 ? 'right' : 'left' }}>{h}</div>
           ))}
         </div>
@@ -606,10 +606,11 @@ function MarkersList({ data, setTab, setMarkerCode }) {
                 color={r.flag ? C.amber : C.ink} height={32} />
             </div>
             <div style={{ textAlign: 'right' }}>
-              {r.pct_change != null ? (
-                <span className="mono" style={{ fontSize: 11,
-                  color: r.direction === 'up' ? C.amber : r.direction === 'down' ? C.forest : C.muted }}>
-                  {dirGlyph(r.direction)}{r.pct_change > 0 ? '+' : ''}{r.pct_change}%
+              {r.pct_change_lifetime != null ? (
+                <span className="mono" style={{ fontSize: 11, cursor: 'default',
+                  color: r.direction_lifetime === 'up' ? C.amber : r.direction_lifetime === 'down' ? C.forest : C.muted }}
+                  title={`Lifetime change since ${r.oldest_collected_on ? fmtDate(r.oldest_collected_on) : 'earliest reading'}`}>
+                  {dirGlyph(r.direction_lifetime)}{Number(r.pct_change_lifetime) > 0 ? '+' : ''}{Math.round(Number(r.pct_change_lifetime))}%
                 </span>
               ) : <span style={{ color: C.muted, fontSize: 11 }}>—</span>}
             </div>
