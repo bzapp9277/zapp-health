@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   LineChart, Line, ComposedChart, Bar,
   ResponsiveContainer, XAxis, YAxis, CartesianGrid,
@@ -2214,15 +2214,57 @@ function LoginScreen({ onAuth }) {
 }
 
 // =====================================================================
-// MAIN APP
+// ERROR BOUNDARY — catches render crashes and shows the error on screen
+// instead of a blank white page.
+// =====================================================================
+export class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+  static getDerivedStateFromError(err) { return { error: err } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, fontFamily: 'monospace', background: '#FAF7F0', minHeight: '100vh' }}>
+          <div style={{ fontSize: 20, color: '#9B3522', marginBottom: 16 }}>Render error — please report this</div>
+          <pre style={{ fontSize: 12, color: '#1A1815', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+            {this.state.error.toString()}
+            {'\n'}
+            {this.state.error.stack}
+          </pre>
+          <button onClick={() => this.setState({ error: null })}
+            style={{ marginTop: 16, padding: '8px 16px', background: '#1A1815', color: '#FAF7F0', border: 'none', cursor: 'pointer' }}>
+            Try again
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+// =====================================================================
+// MAIN APP — all hooks must be called before any conditional return
 // =====================================================================
 export default function App() {
+  // ── ALL hooks declared first ─────────────────────────────────────
   const [tab, setTab] = useState('overview')
   const [markerCode, setMarkerCode] = useState(null)
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [authed, setAuthed] = useState(() => localStorage.getItem(AUTH_KEY) === '1')
+
+  // useMemo MUST be here — before any early return — or React throws
+  // "Rendered more hooks than during the previous render" on auth state change
+  const briefingDueDate = useMemo(() => {
+    if (!data?.briefings?.length) return null
+    const maxDate = data.briefings.reduce((m, b) => b.briefing_date > m ? b.briefing_date : m, data.briefings[0].briefing_date)
+    const d = new Date(maxDate + 'T00:00:00')
+    d.setDate(d.getDate() + 7)
+    return d
+  }, [data])
 
   const loadAll = async () => {
     try {
@@ -2308,15 +2350,6 @@ export default function App() {
       </div>
     )
   }
-
-  const briefingDueDate = useMemo(() => {
-    const bs = data?.briefings
-    if (!bs || bs.length === 0) return null
-    const maxDate = bs.reduce((m, b) => b.briefing_date > m ? b.briefing_date : m, bs[0].briefing_date)
-    const d = new Date(maxDate + 'T00:00:00')
-    d.setDate(d.getDate() + 7)
-    return d
-  }, [data])
 
   const briefingOverdue = briefingDueDate && new Date() >= briefingDueDate
 
