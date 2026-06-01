@@ -5,7 +5,7 @@ import {
   Tooltip, ReferenceArea, ReferenceLine
 } from 'recharts'
 import {
-  ChevronRight, Plus, Mail, Save, LogOut
+  ChevronRight, Plus, Mail, Save, LogOut, Lock
 } from 'lucide-react'
 
 // =====================================================================
