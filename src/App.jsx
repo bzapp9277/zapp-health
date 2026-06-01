@@ -1893,13 +1893,14 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
   const [saveError, setSaveError] = useState(null)
 
   const addPick = () => {
-    const dt = drinkTypes.find(t => t.id === selectedType)
+    const dt = drinkTypes.find(t => String(t.id) === String(selectedType))
     if (!dt) return
+    const safeQty = Math.max(1, Number(qty) || 1)
     setPicks(prev => [...prev, {
       drink_type_id: dt.id, name: dt.name,
       serving_oz: dt.default_serving_oz, abv: dt.abv,
       sugar_g: dt.sugar_g, carbs_g: dt.carbs_g, calories: dt.calories,
-      qty
+      qty: safeQty
     }])
     setSelectedType('')
     setQty(1)
@@ -2010,9 +2011,15 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
         <textarea className="input" rows={2} placeholder="How did it go?" value={journal} onChange={e => setJournal(e.target.value)} />
       </Field>
       <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button className="btn btn-primary" onClick={save} disabled={saving || picks.length === 0}>
+        <button className="btn btn-primary" onClick={save} disabled={saving || Number(picks.length) === 0 || !logDate}>
           {saving ? 'Saving…' : 'Save entry'}
         </button>
+        {!saving && Number(picks.length) === 0 && (
+          <span style={{ fontSize: 12, color: C.muted }}>Add a drink to the list first</span>
+        )}
+        {!saving && Number(picks.length) > 0 && !logDate && (
+          <span style={{ fontSize: 12, color: C.muted }}>Set a date first</span>
+        )}
         {saved && <span className="mono" style={{ fontSize: 11, color: C.forest }}>SAVED</span>}
         {saveError && <span style={{ fontSize: 12, color: C.terracotta }}>{saveError}</span>}
       </div>
