@@ -7,20 +7,15 @@ import {
 import {
   ChevronRight, Plus, Mail, Save, LogOut
 } from 'lucide-react'
-import { createClient as _sbCreate } from '@supabase/supabase-js'
 
 // =====================================================================
-// CONFIG — reads from Vite env vars (set in .env.local / Vercel)
+// CONFIG
 // =====================================================================
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const ANON_KEY     = import.meta.env.VITE_SUPABASE_ANON_KEY
 const USER_ID = 'eb3d4470-3f8b-436a-94db-783d9a744491'
-
-// Auth client — for magic-link login, session management, sign-out
-const authClient = _sbCreate(SUPABASE_URL, ANON_KEY)
-
-// Bearer token used in data API calls — updated to session JWT on login
-let _token = ANON_KEY
+const AUTHORIZED_EMAIL = 'brjack2177@gmail.com'
+const AUTH_KEY = 'zh_authed'
 
 // =====================================================================
 // API LAYER — direct fetch to Supabase REST with anon key
@@ -39,7 +34,7 @@ async function apiCall(method, path, body) {
     method,
     headers: {
       'apikey': ANON_KEY,
-      'Authorization': `Bearer ${_token}`,
+      'Authorization': `Bearer ${ANON_KEY}`,
       'Content-Type': 'application/json',
       'Prefer': method === 'POST' || method === 'PATCH' ? 'return=representation' : ''
     },
@@ -2166,73 +2161,54 @@ function BriefingsTab({ data }) {
 }
 
 // =====================================================================
-// LOGIN SCREEN
+// LOGIN SCREEN — type your email, you're in. No links, no OTP.
 // =====================================================================
-function LoginScreen() {
-  const [email, setEmail] = useState('brjack2177@gmail.com')
-  const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [err, setErr] = useState(null)
+function LoginScreen({ onAuth }) {
+  const [email, setEmail] = useState('')
+  const [wrong, setWrong] = useState(false)
 
-  const sendLink = async () => {
-    setSending(true); setErr(null)
-    try {
-      const { error } = await authClient.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: window.location.origin }
-      })
-      if (error) throw error
-      setSent(true)
-    } catch (e) {
-      setErr(e.message)
-    } finally {
-      setSending(false)
+  const attempt = () => {
+    if (email.trim().toLowerCase() === AUTHORIZED_EMAIL) {
+      onAuth()
+    } else {
+      setWrong(true)
     }
   }
 
   return (
     <div className="zapp-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <style>{STYLE}</style>
-      {!sent ? (
-        <div className="card" style={{ padding: 40, maxWidth: 400, width: '100%', margin: '0 24px' }}>
-          <div className="label-eyebrow" style={{ color: C.amber, marginBottom: 4 }}>Personal Health Ledger</div>
-          <h1 className="display" style={{ fontSize: 44, lineHeight: 1, margin: '4px 0 28px' }}>
-            Zapp<span style={{ color: C.amber }}>.</span>
-          </h1>
-          <div style={{ marginBottom: 16 }}>
-            <div className="label-eyebrow" style={{ marginBottom: 6 }}>Email</div>
-            <input
-              className="input"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !sending && sendLink()}
-              autoFocus
-            />
+      <div className="card" style={{ padding: 40, maxWidth: 400, width: '100%', margin: '0 24px' }}>
+        <div className="label-eyebrow" style={{ color: C.amber, marginBottom: 4 }}>Personal Health Ledger</div>
+        <h1 className="display" style={{ fontSize: 44, lineHeight: 1, margin: '4px 0 28px' }}>
+          Zapp<span style={{ color: C.amber }}>.</span>
+        </h1>
+        <div style={{ marginBottom: 16 }}>
+          <div className="label-eyebrow" style={{ marginBottom: 6 }}>Email</div>
+          <input
+            className="input"
+            type="email"
+            placeholder="your email"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setWrong(false) }}
+            onKeyDown={e => e.key === 'Enter' && attempt()}
+            autoFocus
+          />
+        </div>
+        {wrong && (
+          <div style={{ marginBottom: 12, fontSize: 13, color: C.terracotta }}>
+            That email isn't authorized.
           </div>
-          {err && <div style={{ marginBottom: 12, fontSize: 13, color: C.terracotta }}>{err}</div>}
-          <button
-            className="btn btn-primary"
-            onClick={sendLink}
-            disabled={sending || !email}
-            style={{ width: '100%' }}
-          >
-            {sending ? 'Sending…' : 'Send me a login link'}
-          </button>
-          <p style={{ marginTop: 16, fontSize: 12, color: C.muted, lineHeight: 1.5, textAlign: 'center' }}>
-            A one-time link will be sent to your inbox. No password needed.
-          </p>
-        </div>
-      ) : (
-        <div className="card" style={{ padding: 40, maxWidth: 400, width: '100%', margin: '0 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>✉</div>
-          <h2 className="display" style={{ fontSize: 28, marginBottom: 12 }}>Check your inbox</h2>
-          <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6 }}>
-            A login link was sent to <strong>{email}</strong>.<br />
-            Tap it to sign in — it expires in 1 hour.
-          </p>
-        </div>
-      )}
+        )}
+        <button
+          className="btn btn-primary"
+          onClick={attempt}
+          disabled={!email.trim()}
+          style={{ width: '100%' }}
+        >
+          Sign in
+        </button>
+      </div>
     </div>
   )
 }
@@ -2246,8 +2222,7 @@ export default function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
-  // session: undefined = checking, null = not logged in, object = logged in
-  const [session, setSession] = useState(undefined)
+  const [authed, setAuthed] = useState(() => localStorage.getItem(AUTH_KEY) === '1')
 
   const loadAll = async () => {
     try {
@@ -2299,35 +2274,20 @@ export default function App() {
     }
   }
 
-  // Auth: listen for session changes (fires immediately with INITIAL_SESSION)
-  useEffect(() => {
-    const { data: { subscription } } = authClient.auth.onAuthStateChange((_event, sess) => {
-      _token = sess?.access_token ?? ANON_KEY
-      setSession(sess ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+  useEffect(() => { if (authed) loadAll() }, [authed])
 
-  // Data: load whenever we get a valid session
-  useEffect(() => {
-    if (session) loadAll()
-  }, [session])
-
-  const handleSignOut = async () => {
-    await authClient.auth.signOut()
-    _token = ANON_KEY
+  const handleSignOut = () => {
+    localStorage.removeItem(AUTH_KEY)
+    setAuthed(false)
     setData(null)
-    setSession(null)
   }
 
-  // Auth gate
-  if (session === undefined) return (
-    <div className="zapp-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <style>{STYLE}</style>
-      <span className="display" style={{ fontSize: 20, color: C.muted, fontStyle: 'italic' }}>Loading…</span>
-    </div>
-  )
-  if (!session) return <LoginScreen />
+  const handleAuth = () => {
+    localStorage.setItem(AUTH_KEY, '1')
+    setAuthed(true)
+  }
+
+  if (!authed) return <LoginScreen onAuth={handleAuth} />
 
   if (error) {
     return (
