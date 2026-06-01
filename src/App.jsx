@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid,
+  LineChart, Line, ComposedChart, Bar,
+  ResponsiveContainer, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceArea, ReferenceLine
 } from 'recharts'
 import {
@@ -1453,6 +1454,208 @@ function Field({ label, children }) {
 }
 
 // =====================================================================
+// INTAKE VS LABS CHART
+// =====================================================================
+const LAB_CFG = [
+  { code: 'alt',           label: 'ALT',           unit: 'IU/L',  color: C.forest,     dash: undefined },
+  { code: 'lipase',        label: 'Lipase',        unit: 'U/L',   color: '#7B3FA0',    dash: '5 3'     },
+  { code: 'triglycerides', label: 'Triglycerides', unit: 'mg/dL', color: C.terracotta, dash: '2 4'     },
+]
+
+function isoWeekStart(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  return d.toISOString().slice(0, 10)
+}
+
+function buildIntakeLabsData(alcoholLog, markerHistory) {
+  const allDates = []
+  for (const { code } of LAB_CFG)
+    for (const pt of (markerHistory[code] || [])) allDates.push(pt.date)
+  for (const row of (alcoholLog || [])) allDates.push(row.log_date)
+  if (allDates.length === 0) return []
+
+  allDates.sort()
+  const earliestWeek = isoWeekStart(allDates[0])
+  const todayWeek    = isoWeekStart(new Date().toISOString().slice(0, 10))
+
+  const weeks = []
+  const cur = new Date(earliestWeek + 'T00:00:00')
+  const end = new Date(todayWeek   + 'T00:00:00')
+  while (cur <= end) { weeks.push(cur.toISOString().slice(0, 10)); cur.setDate(cur.getDate() + 7) }
+
+  const map = {}
+  for (const w of weeks) map[w] = { week: w }
+
+  for (const row of (alcoholLog || [])) {
+    const w = isoWeekStart(row.log_date)
+    if (map[w]) map[w].ethanolG = Math.round((map[w].ethanolG || 0) + Number(row.total_ethanol_g || 0))
+  }
+
+  for (const { code } of LAB_CFG)
+    for (const pt of (markerHistory[code] || [])) {
+      const w = isoWeekStart(pt.date)
+      if (map[w]) { map[w][code] = Math.round(Number(pt.value)); map[w][`${code}_date`] = pt.date }
+    }
+
+  return weeks.map(w => map[w])
+}
+
+function IntakeLabsChart({ alcoholLog, markerHistory }) {
+  const chartData = useMemo(
+    () => buildIntakeLabsData(alcoholLog, markerHistory),
+    [alcoholLog, markerHistory]
+  )
+
+  if (chartData.length === 0) return (
+    <div className="card" style={{ padding: 32, marginTop: 40, textAlign: 'center', color: C.muted, fontStyle: 'italic', fontSize: 14 }}>
+      No intake or lab data yet.
+    </div>
+  )
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null
+    const d = payload[0]?.payload || {}
+    return (
+      <div style={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 2, padding: '10px 14px', fontSize: 12, fontFamily: 'Inter Tight', minWidth: 200 }}>
+        <div className="mono" style={{ color: C.muted, fontSize: 10, marginBottom: 8, textTransform: 'uppercase' }}>
+          Week of {fmtDate(label)}
+        </div>
+        {d.ethanolG != null && (
+          <div style={{ marginBottom: 4 }}>
+            <span style={{ color: C.amber }}>▮</span>{' '}
+            Ethanol: <span className="num" style={{ fontWeight: 600 }}>{d.ethanolG}</span> g
+          </div>
+        )}
+        {LAB_CFG.map(({ code, label: lbl, unit, color }) => d[code] != null && (
+          <div key={code} style={{ marginBottom: 2 }}>
+            <span style={{ color }}>●</span>{' '}
+            {lbl}: <span className="num" style={{ fontWeight: 600 }}>{d[code]}</span> {unit}
+            {d[`${code}_date`] && (
+              <span style={{ color: C.muted, fontSize: 10, marginLeft: 4 }}>
+                · {fmtDate(d[`${code}_date`])}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="card" style={{ padding: 24, marginTop: 40 }}>
+      <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.rule}` }}>
+        <div className="label-eyebrow" style={{ color: C.amber }}>Intake vs. Labs</div>
+        <h2 className="display" style={{ fontSize: 28, margin: '4px 0 0' }}>Ethanol load & biomarker trend.</h2>
+        <p style={{ fontSize: 13, color: C.muted, marginTop: 8, lineHeight: 1.55 }}>
+          Weekly ethanol in grams (bars, left axis) vs. ALT, Lipase, and Triglycerides over time (lines, right axis).
+          Lab points connect across sparse weeks. Ethanol tracking started May 2026.
+        </p>
+      </div>
+
+      <ResponsiveContainer width="100%" height={320}>
+        <ComposedChart data={chartData} margin={{ top: 16, right: 56, left: 8, bottom: 8 }}>
+          <CartesianGrid stroke={C.rule} strokeDasharray="0" vertical={false} />
+          <XAxis
+            dataKey="week"
+            tickFormatter={fmtDateShort}
+            stroke={C.muted}
+            tickLine={false}
+            axisLine={{ stroke: C.rule }}
+            minTickGap={56}
+          />
+          <YAxis
+            yAxisId="ethanol"
+            orientation="left"
+            stroke={C.muted}
+            tickLine={false}
+            axisLine={{ stroke: C.rule }}
+            width={52}
+            tickFormatter={v => Math.round(v)}
+            domain={[0, d => Math.max(d, 700)]}
+          />
+          <YAxis
+            yAxisId="labs"
+            orientation="right"
+            stroke={C.muted}
+            tickLine={false}
+            axisLine={{ stroke: C.rule }}
+            width={52}
+            tickFormatter={v => Math.round(v)}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <ReferenceLine
+            yAxisId="ethanol" y={630}
+            stroke={C.muted} strokeDasharray="4 3"
+            label={{ value: 'Dec 2025 baseline', position: 'insideTopLeft', fill: C.muted, fontSize: 10 }}
+          />
+          <ReferenceLine
+            yAxisId="ethanol" y={196}
+            stroke={C.forest} strokeDasharray="4 3"
+            label={{ value: 'heavy-drinking line', position: 'insideTopLeft', fill: C.forest, fontSize: 10 }}
+          />
+          <Bar
+            yAxisId="ethanol"
+            dataKey="ethanolG"
+            fill={`${C.amber}B8`}
+            radius={[2, 2, 0, 0]}
+            maxBarSize={20}
+          />
+          {LAB_CFG.map(({ code, color, dash }) => (
+            <Line
+              key={code}
+              yAxisId="labs"
+              type="monotone"
+              dataKey={code}
+              stroke={color}
+              strokeWidth={2}
+              strokeDasharray={dash}
+              dot={{ r: 4, fill: color, stroke: C.cream, strokeWidth: 1.5 }}
+              activeDot={{ r: 5 }}
+              connectNulls
+              isAnimationActive={false}
+            />
+          ))}
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.rule}`, display: 'flex', flexWrap: 'wrap', gap: 20, fontSize: 11, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 14, height: 10, background: `${C.amber}B8`, borderRadius: 1 }} />
+          <span className="mono" style={{ color: C.muted }}>Ethanol g/week · left axis</span>
+        </div>
+        {LAB_CFG.map(({ code, label, unit, color, dash }) => (
+          <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="26" height="12" style={{ overflow: 'visible', flexShrink: 0 }}>
+              <line x1="2" y1="6" x2="24" y2="6" stroke={color} strokeWidth="2"
+                strokeDasharray={dash || ''} />
+              <circle cx="13" cy="6" r="3.5" fill={color} stroke={C.cream} strokeWidth="1.5" />
+            </svg>
+            <span className="mono" style={{ color: C.muted }}>{label} ({unit}) · right axis</span>
+          </div>
+        ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="26" height="8" style={{ flexShrink: 0 }}>
+              <line x1="2" y1="4" x2="24" y2="4" stroke={C.muted} strokeWidth="1.5" strokeDasharray="4 3" />
+            </svg>
+            <span className="mono" style={{ color: C.muted }}>630 g · Dec 2025 baseline</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="26" height="8" style={{ flexShrink: 0 }}>
+              <line x1="2" y1="4" x2="24" y2="4" stroke={C.forest} strokeWidth="1.5" strokeDasharray="4 3" />
+            </svg>
+            <span className="mono" style={{ color: C.muted }}>196 g · heavy-drinking line</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =====================================================================
 // DRINKS TAB — ranking card (feature 1)
 // =====================================================================
 const TIER_META = {
@@ -1747,6 +1950,7 @@ function DrinksTab({ data, refresh }) {
         <h3 className="display" style={{ fontSize: 20, marginBottom: 12 }}>Recent entries</h3>
         <AlcoholLogList alcoholLog={data.alcoholLog} />
       </div>
+      <IntakeLabsChart alcoholLog={data.alcoholLog} markerHistory={data.markerHistory} />
     </>
   )
 }
