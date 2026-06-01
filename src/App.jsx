@@ -606,13 +606,23 @@ function MarkersList({ data, setTab, setMarkerCode }) {
                 color={r.flag ? C.amber : C.ink} height={32} />
             </div>
             <div style={{ textAlign: 'right' }}>
-              {r.pct_change_lifetime != null ? (
-                <span className="mono" style={{ fontSize: 11, cursor: 'default',
-                  color: r.direction_lifetime === 'up' ? C.amber : r.direction_lifetime === 'down' ? C.forest : C.muted }}
-                  title={`Lifetime change since ${r.oldest_collected_on ? fmtDate(r.oldest_collected_on) : 'earliest reading'}`}>
-                  {dirGlyph(r.direction_lifetime)}{Number(r.pct_change_lifetime) > 0 ? '+' : ''}{Math.round(Number(r.pct_change_lifetime))}%
-                </span>
-              ) : <span style={{ color: C.muted, fontSize: 11 }}>—</span>}
+              {r.pct_change_lifetime != null ? (() => {
+                const bd = r.better_direction
+                const dir = r.direction_lifetime
+                const isGood = (bd === 'lower' && dir === 'down') || (bd === 'higher' && dir === 'up')
+                const isBad  = (bd === 'lower' && dir === 'up')   || (bd === 'higher' && dir === 'down')
+                const color  = bd === 'neutral' || !dir || dir === 'flat' ? C.muted
+                             : isGood ? C.forest
+                             : isBad  ? C.terracotta
+                             : C.muted
+                const tip = `Lifetime change since ${r.oldest_collected_on ? fmtDate(r.oldest_collected_on) : 'earliest reading'}`
+                          + (bd === 'neutral' ? ' · no single healthy direction' : '')
+                return (
+                  <span className="mono" style={{ fontSize: 11, cursor: 'default', color }} title={tip}>
+                    {dirGlyph(dir)}{Number(r.pct_change_lifetime) > 0 ? '+' : ''}{Math.round(Number(r.pct_change_lifetime))}%
+                  </span>
+                )
+              })() : <span style={{ color: C.muted, fontSize: 11 }}>—</span>}
             </div>
           </div>
         ))}
