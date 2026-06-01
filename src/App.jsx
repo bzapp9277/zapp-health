@@ -317,9 +317,104 @@ function ScorecardCard({ row, trend, onClick }) {
 }
 
 // =====================================================================
+// HEALTH INBOX CARD
+// =====================================================================
+const CATEGORY_LABELS = {
+  lab_result_notification: 'Lab result',
+  visit_summary:           'Visit summary',
+  appointment:             'Appointment',
+  doctor_note:             'Doctor note',
+  other:                   'Health mail',
+}
+
+function HealthInboxCard({ items, refresh }) {
+  const newItems = (items || []).filter(i => i.status === 'new')
+  const [marking, setMarking] = useState(null)
+
+  const markDone = async (id) => {
+    setMarking(id)
+    try {
+      await db.update('health_inbox', `id=eq.${id}`, { status: 'done' })
+      refresh()
+    } finally {
+      setMarking(null)
+    }
+  }
+
+  if (newItems.length === 0) return null
+
+  return (
+    <section style={{ marginBottom: 40 }}>
+      <div style={{
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        marginBottom: 16
+      }}>
+        <div>
+          <div className="label-eyebrow" style={{ color: C.terracotta }}>Action required</div>
+          <h2 className="display" style={{ fontSize: 24, marginTop: 4 }}>Health inbox</h2>
+        </div>
+        <span className="num" style={{ fontSize: 32, color: C.terracotta }}>{newItems.length}</span>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {newItems.map(item => {
+          const catLabel = CATEGORY_LABELS[item.category] || 'Health mail'
+          const isAttachment = item.has_attachment
+          return (
+            <div key={item.id} className="card" style={{
+              padding: '16px 20px',
+              borderLeft: `3px solid ${isAttachment ? C.forest : C.terracotta}`,
+              display: 'flex', alignItems: 'flex-start', gap: 16
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span className="pill" style={{
+                    background: isAttachment ? `${C.forest}12` : `${C.terracotta}12`,
+                    color: isAttachment ? C.forest : C.terracotta,
+                    border: `1px solid ${isAttachment ? C.forest : C.terracotta}40`,
+                  }}>{catLabel}</span>
+                  {isAttachment && (
+                    <span className="pill" style={{
+                      background: `${C.forest}12`, color: C.forest, border: `1px solid ${C.forest}40`
+                    }}>PDF / attachment</span>
+                  )}
+                  <span className="mono" style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase' }}>
+                    {item.received_at ? fmtDate(item.received_at.slice(0, 10)) : ''}
+                  </span>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 3 }}>
+                  {item.subject || '(no subject)'}
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{item.sender}</div>
+                {item.action_needed && (
+                  <div style={{
+                    fontSize: 13, color: C.ink2, lineHeight: 1.5,
+                    padding: '6px 10px', background: C.paper2, borderRadius: 2
+                  }}>
+                    {item.action_needed}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => markDone(item.id)}
+                disabled={marking === item.id}
+                className="btn btn-ghost"
+                style={{ flexShrink: 0, fontSize: 12, padding: '6px 12px' }}
+              >
+                {marking === item.id ? '…' : 'Mark done'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+// =====================================================================
 // DASHBOARD
 // =====================================================================
-function Dashboard({ data, setTab, setMarkerCode }) {
+function Dashboard({ data, setTab, setMarkerCode, refresh }) {
   const FEATURED = ['hematocrit', 'hemoglobin', 'total_testosterone', 'free_testosterone',
     'ldl_calc', 'total_cholesterol', 'alt', 'egfr', 'calcium', 'hba1c']
 
@@ -342,6 +437,8 @@ function Dashboard({ data, setTab, setMarkerCode }) {
         subtitle="A running snapshot of biomarkers, with the things demanding attention surfaced first."
         right={<button className="btn btn-ghost" onClick={() => setTab('reports')}>Generate report →</button>}
       />
+
+      <HealthInboxCard items={data.healthInbox} refresh={refresh} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: C.rule, border: `1px solid ${C.rule}`, marginBottom: 48 }}>
         <Stat label="Latest panel" value={fmtDate(latestPanel)} />
@@ -2066,7 +2163,7 @@ export default function App() {
   const loadAll = async () => {
     try {
       setError(null)
-      const [profile, scorecard, history, panels, results, markers, medications, doses, treatments, events, questions, vitals, reports, activeMeds, drinkRankings, briefings, alcoholLog, drinkTypes] = await Promise.all([
+      const [profile, scorecard, history, panels, results, markers, medications, doses, treatments, events, questions, vitals, reports, activeMeds, drinkRankings, briefings, alcoholLog, drinkTypes, healthInbox] = await Promise.all([
         db.select('profiles', { id: `eq.${USER_ID}` }),
         db.select('v_marker_scorecard', { user_id: `eq.${USER_ID}`, order: 'display_order' }),
         db.select('v_latest_marker_values', { user_id: `eq.${USER_ID}`, order: 'collected_on.asc' }),
@@ -2084,7 +2181,8 @@ export default function App() {
         db.select('drink_rankings', { order: 'ranked_on.desc' }),
         db.select('briefings', { order: 'briefing_date.desc' }),
         db.select('alcohol_log', { user_id: `eq.${USER_ID}`, order: 'log_date.desc', limit: 60 }),
-        db.select('drink_types', { order: 'category,name' })
+        db.select('drink_types', { order: 'category,name' }),
+        db.select('health_inbox', { user_id: `eq.${USER_ID}`, order: 'received_at.desc', limit: 50 })
       ])
 
       const histByCode = {}
@@ -2104,7 +2202,7 @@ export default function App() {
         profile: profile[0] || {},
         scorecard, history: histByCode, markerHistory,
         panels, results, markers, medications, doses, treatments, events, questions, vitals, reports, activeMeds,
-        drinkRankings, briefings, alcoholLog, drinkTypes
+        drinkRankings, briefings, alcoholLog, drinkTypes, healthInbox: healthInbox || []
       })
     } catch (e) {
       console.error('Data load failed', e)
@@ -2172,7 +2270,7 @@ export default function App() {
           </div>
         )}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 48px' }}>
-          {tab === 'overview' && <Dashboard data={data} setTab={setTab} setMarkerCode={setMarkerCode} />}
+          {tab === 'overview' && <Dashboard data={data} setTab={setTab} setMarkerCode={setMarkerCode} refresh={loadAll} />}
           {tab === 'markers' && <MarkersList data={data} setTab={setTab} setMarkerCode={setMarkerCode} />}
           {tab === 'marker_detail' && markerCode && <MarkerDetail data={data} code={markerCode} setTab={setTab} />}
           {tab === 'medications' && <Medications data={data} />}
