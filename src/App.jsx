@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   LineChart, Line, ComposedChart, Bar,
   ResponsiveContainer, XAxis, YAxis, CartesianGrid,
@@ -1572,6 +1572,29 @@ function Field({ label, children }) {
 }
 
 // =====================================================================
+// BASELINE HELPERS
+// =====================================================================
+function computeBaselineEthanolPerDay(profile, drinkTypes) {
+  const dt = (drinkTypes || []).find(t => t.id === profile?.baseline_drink_type_id)
+  if (!dt) return 0
+  const servOz = Number(dt.default_serving_oz) || 0
+  const abv    = Number(dt.abv) || 0
+  const n      = Number(profile?.baseline_servings) || 4
+  return servOz * 29.5735 * (abv / 100) * 0.789 * n
+}
+
+function buildBaselinePicks(profile, drinkTypes) {
+  const dt = (drinkTypes || []).find(t => t.id === profile?.baseline_drink_type_id)
+  if (!dt) return []
+  return [{
+    drink_type_id: dt.id, name: dt.name,
+    serving_oz: dt.default_serving_oz, abv: dt.abv,
+    sugar_g: dt.sugar_g, carbs_g: dt.carbs_g, calories: dt.calories,
+    qty: Number(profile?.baseline_servings) || 4
+  }]
+}
+
+// =====================================================================
 // INTAKE VS LABS CHART
 // =====================================================================
 const LAB_CFG = [
@@ -1588,7 +1611,7 @@ function isoWeekStart(dateStr) {
   return d.toISOString().slice(0, 10)
 }
 
-function buildIntakeLabsData(alcoholLog, markerHistory) {
+function buildIntakeLabsData(alcoholLog, markerHistory, profile, drinkTypes) {
   const allDates = []
   for (const { code } of LAB_CFG)
     for (const pt of (markerHistory[code] || [])) allDates.push(pt.date)
@@ -1597,7 +1620,8 @@ function buildIntakeLabsData(alcoholLog, markerHistory) {
 
   allDates.sort()
   const earliestWeek = isoWeekStart(allDates[0])
-  const todayWeek    = isoWeekStart(new Date().toISOString().slice(0, 10))
+  const todayStr     = new Date().toISOString().slice(0, 10)
+  const todayWeek    = isoWeekStart(todayStr)
 
   const weeks = []
   const cur = new Date(earliestWeek + 'T00:00:00')
@@ -1605,13 +1629,34 @@ function buildIntakeLabsData(alcoholLog, markerHistory) {
   while (cur <= end) { weeks.push(cur.toISOString().slice(0, 10)); cur.setDate(cur.getDate() + 7) }
 
   const map = {}
-  for (const w of weeks) map[w] = { week: w }
+  for (const w of weeks) map[w] = { week: w, ethanolGLogged: 0, ethanolGAssumed: 0 }
 
+  // Logged ethanol
+  const loggedDateSet = new Set((alcoholLog || []).map(r => r.log_date))
   for (const row of (alcoholLog || [])) {
     const w = isoWeekStart(row.log_date)
-    if (map[w]) map[w].ethanolG = Math.round((map[w].ethanolG || 0) + Number(row.total_ethanol_g || 0))
+    if (map[w]) map[w].ethanolGLogged += Number(row.total_ethanol_g || 0)
   }
 
+  // Assumed ethanol for every non-logged day in the range
+  const baselinePerDay = computeBaselineEthanolPerDay(profile, drinkTypes)
+  const rangeStart = new Date(allDates[0] + 'T00:00:00')
+  const rangeEnd   = new Date(todayStr + 'T00:00:00')
+  for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
+    const ds = d.toISOString().slice(0, 10)
+    if (!loggedDateSet.has(ds)) {
+      const w = isoWeekStart(ds)
+      if (map[w]) map[w].ethanolGAssumed += baselinePerDay
+    }
+  }
+
+  // Round
+  for (const w of weeks) {
+    map[w].ethanolGLogged  = Math.round(map[w].ethanolGLogged)
+    map[w].ethanolGAssumed = Math.round(map[w].ethanolGAssumed)
+  }
+
+  // Lab data
   for (const { code } of LAB_CFG)
     for (const pt of (markerHistory[code] || [])) {
       const w = isoWeekStart(pt.date)
@@ -1621,10 +1666,10 @@ function buildIntakeLabsData(alcoholLog, markerHistory) {
   return weeks.map(w => map[w])
 }
 
-function IntakeLabsChart({ alcoholLog, markerHistory }) {
+function IntakeLabsChart({ alcoholLog, markerHistory, profile, drinkTypes }) {
   const chartData = useMemo(
-    () => buildIntakeLabsData(alcoholLog, markerHistory),
-    [alcoholLog, markerHistory]
+    () => buildIntakeLabsData(alcoholLog, markerHistory, profile, drinkTypes),
+    [alcoholLog, markerHistory, profile, drinkTypes]
   )
 
   if (chartData.length === 0) return (
@@ -1641,10 +1686,15 @@ function IntakeLabsChart({ alcoholLog, markerHistory }) {
         <div className="mono" style={{ color: C.muted, fontSize: 10, marginBottom: 8, textTransform: 'uppercase' }}>
           Week of {fmtDate(label)}
         </div>
-        {d.ethanolG != null && (
+        {(d.ethanolGLogged > 0 || d.ethanolGAssumed > 0) && (
           <div style={{ marginBottom: 4 }}>
             <span style={{ color: C.amber }}>▮</span>{' '}
-            Ethanol: <span className="num" style={{ fontWeight: 600 }}>{d.ethanolG}</span> g
+            Ethanol: <span className="num" style={{ fontWeight: 600 }}>{(d.ethanolGLogged || 0) + (d.ethanolGAssumed || 0)}</span> g
+            {d.ethanolGAssumed > 0 && (
+              <span style={{ color: C.muted, fontSize: 10, marginLeft: 6 }}>
+                ({d.ethanolGLogged || 0}g logged + {d.ethanolGAssumed}g assumed)
+              </span>
+            )}
           </div>
         )}
         {LAB_CFG.map(({ code, label: lbl, unit, color }) => d[code] != null && (
@@ -1714,13 +1764,8 @@ function IntakeLabsChart({ alcoholLog, markerHistory }) {
             stroke={C.forest} strokeDasharray="4 3"
             label={{ value: 'heavy-drinking line', position: 'insideTopLeft', fill: C.forest, fontSize: 10 }}
           />
-          <Bar
-            yAxisId="ethanol"
-            dataKey="ethanolG"
-            fill={`${C.amber}B8`}
-            radius={[2, 2, 0, 0]}
-            maxBarSize={20}
-          />
+          <Bar yAxisId="ethanol" dataKey="ethanolGLogged"  fill={`${C.amber}CC`} stackId="eth" radius={[0,0,0,0]} maxBarSize={20} />
+          <Bar yAxisId="ethanol" dataKey="ethanolGAssumed" fill={`${C.amber}55`} stackId="eth" radius={[2,2,0,0]} maxBarSize={20} />
           {LAB_CFG.map(({ code, color, dash }) => (
             <Line
               key={code}
@@ -1741,8 +1786,12 @@ function IntakeLabsChart({ alcoholLog, markerHistory }) {
 
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.rule}`, display: 'flex', flexWrap: 'wrap', gap: 20, fontSize: 11, alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 14, height: 10, background: `${C.amber}B8`, borderRadius: 1 }} />
-          <span className="mono" style={{ color: C.muted }}>Ethanol g/week · left axis</span>
+          <div style={{ width: 14, height: 10, background: `${C.amber}CC`, borderRadius: 1 }} />
+          <span className="mono" style={{ color: C.muted }}>Ethanol g/week (logged) · left axis</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 14, height: 10, background: `${C.amber}55`, borderRadius: 1, border: `1px dashed ${C.amber}88` }} />
+          <span className="mono" style={{ color: C.muted }}>Ethanol g/week (assumed baseline) · left axis</span>
         </div>
         {LAB_CFG.map(({ code, label, unit, color, dash }) => (
           <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1873,24 +1922,32 @@ function calcTotals(picks) {
   }
 }
 
-function DrinkLogForm({ drinkTypes, onSaved }) {
-  const [logDate, setLogDate] = useState(TODAY_ISO)
-  const [picks, setPicks] = useState([])
-  const [selectedType, setSelectedType] = useState('')
+// editEntry = existing log row to edit (null = create new)
+// prefillDate = date to pre-select (defaults to today)
+// prefillPicks = picks array to pre-load (from baseline or existing entry)
+// defaultTypeId = baseline drink type id for the picker default
+function DrinkLogForm({ drinkTypes, onSaved, onDeleted, editEntry, prefillDate, prefillPicks, defaultTypeId }) {
+  const normPick = (p) => ({ ...p, qty: Number(p.qty ?? p.count ?? 1) })
+  const [logDate, setLogDate] = useState(prefillDate || TODAY_ISO)
+  const [picks, setPicks] = useState((prefillPicks || []).map(normPick))
+  const [selectedType, setSelectedType] = useState(defaultTypeId || '')
   const [qty, setQty] = useState(1)
-  const [context, setContext] = useState('')
-  const [water, setWater] = useState('')
-  const [pain, setPain] = useState('')
-  const [backPain, setBackPain] = useState(false)
-  const [nausea, setNausea] = useState(false)
-  const [painFatty, setPainFatty] = useState(false)
-  const [sugarCrash, setSugarCrash] = useState(false)
-  const [sleep, setSleep] = useState('')
-  const [energy, setEnergy] = useState('')
-  const [journal, setJournal] = useState('')
+  const [context, setContext] = useState(editEntry?.context || '')
+  const [water, setWater] = useState(editEntry?.water_glasses != null ? String(editEntry.water_glasses) : '')
+  const [pain, setPain] = useState(editEntry?.abdominal_pain_0_10 != null ? String(editEntry.abdominal_pain_0_10) : '')
+  const [backPain, setBackPain] = useState(!!editEntry?.back_pain)
+  const [nausea, setNausea] = useState(!!editEntry?.nausea)
+  const [painFatty, setPainFatty] = useState(!!editEntry?.pain_after_fatty_food)
+  const [sugarCrash, setSugarCrash] = useState(!!editEntry?.sugar_crash)
+  const [sleep, setSleep] = useState(editEntry?.sleep_quality_1_5 != null ? String(editEntry.sleep_quality_1_5) : '')
+  const [energy, setEnergy] = useState(editEntry?.energy_next_am_1_5 != null ? String(editEntry.energy_next_am_1_5) : '')
+  const [journal, setJournal] = useState(editEntry?.journal || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [confirming, setConfirming] = useState(false)
+
+  const isEditing = !!editEntry?.id
 
   const addPick = () => {
     const dt = drinkTypes.find(t => String(t.id) === String(selectedType))
@@ -1902,7 +1959,7 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
       sugar_g: dt.sugar_g, carbs_g: dt.carbs_g, calories: dt.calories,
       qty: safeQty
     }])
-    setSelectedType('')
+    setSelectedType(defaultTypeId || '')
     setQty(1)
   }
 
@@ -1910,44 +1967,90 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
 
   const totals = calcTotals(picks.flatMap(p => Array.from({ length: p.qty }, () => p)))
 
+  const buildRow = () => ({
+    user_id: USER_ID,
+    log_date: logDate,
+    drinks: picks,
+    ...totals,
+    context: context || null,
+    water_glasses: water ? Number(water) : null,
+    abdominal_pain_0_10: pain !== '' ? Number(pain) : null,
+    back_pain: backPain || null,
+    nausea: nausea || null,
+    pain_after_fatty_food: painFatty || null,
+    sugar_crash: sugarCrash || null,
+    sleep_quality_1_5: sleep ? Number(sleep) : null,
+    energy_next_am_1_5: energy ? Number(energy) : null,
+    journal: journal || null
+  })
+
   const save = async () => {
     if (picks.length === 0) return
-    setSaving(true)
-    setSaveError(null)
+    setSaving(true); setSaveError(null)
     try {
-      await db.insert('alcohol_log', {
-        user_id: USER_ID,
-        log_date: logDate,
-        drinks: picks,
-        ...totals,
-        context: context || null,
-        water_glasses: water ? Number(water) : null,
-        abdominal_pain_0_10: pain !== '' ? Number(pain) : null,
-        back_pain: backPain || null,
-        nausea: nausea || null,
-        pain_after_fatty_food: painFatty || null,
-        sugar_crash: sugarCrash || null,
-        sleep_quality_1_5: sleep ? Number(sleep) : null,
-        energy_next_am_1_5: energy ? Number(energy) : null,
-        journal: journal || null
-      })
-      setPicks([]); setContext(''); setWater(''); setPain('');
-      setBackPain(false); setNausea(false); setPainFatty(false); setSugarCrash(false);
-      setSleep(''); setEnergy(''); setJournal('');
+      if (isEditing) {
+        await db.update('alcohol_log', `id=eq.${editEntry.id}`, buildRow())
+      } else {
+        await db.insert('alcohol_log', buildRow())
+      }
       setSaved(true); setTimeout(() => setSaved(false), 2500)
       onSaved()
     } catch (err) {
       setSaveError(err.message || 'Save failed — check your entries and try again.')
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
+  }
+
+  const saveAF = async () => {
+    setSaving(true); setSaveError(null)
+    try {
+      const zeroRow = {
+        user_id: USER_ID, log_date: logDate, drinks: [],
+        total_ethanol_g: 0, total_std_drinks: 0, total_sugar_g: 0, total_carbs_g: 0, total_calories: 0,
+        context: context || null, water_glasses: water ? Number(water) : null,
+        journal: journal || null
+      }
+      if (isEditing) {
+        await db.update('alcohol_log', `id=eq.${editEntry.id}`, zeroRow)
+      } else {
+        await db.insert('alcohol_log', zeroRow)
+      }
+      setSaved(true); setTimeout(() => setSaved(false), 2500)
+      onSaved()
+    } catch (err) {
+      setSaveError(err.message || 'Save failed.')
+    } finally { setSaving(false) }
+  }
+
+  const deleteEntry = async () => {
+    if (!isEditing) return
+    setSaving(true)
+    try {
+      await db.remove('alcohol_log', `id=eq.${editEntry.id}`)
+      onDeleted?.()
+    } catch (err) {
+      setSaveError(err.message || 'Delete failed.')
+    } finally { setSaving(false); setConfirming(false) }
   }
 
   const categories = [...new Set(drinkTypes.map(t => t.category))].sort()
 
   return (
-    <div className="card" style={{ padding: 24, marginBottom: 24 }}>
-      <div className="label-eyebrow" style={{ marginBottom: 16 }}>Log a day</div>
+    <div className="card" style={{ padding: 24, marginBottom: 24, borderLeft: isEditing ? `3px solid ${C.amber}` : undefined }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div className="label-eyebrow">{isEditing ? `Editing entry — ${logDate}` : 'Log a day'}</div>
+        {isEditing && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {!confirming
+              ? <button onClick={() => setConfirming(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: C.terracotta, textDecoration: 'underline', fontFamily: 'inherit', letterSpacing: '0.04em' }}>Delete entry</button>
+              : <>
+                  <span style={{ fontSize: 11, color: C.terracotta }}>Sure?</span>
+                  <button onClick={deleteEntry} disabled={saving} style={{ background: C.terracotta, color: C.cream, border: 'none', cursor: 'pointer', fontSize: 11, padding: '2px 8px', borderRadius: 2, fontFamily: 'inherit' }}>Yes, delete</button>
+                  <button onClick={() => setConfirming(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: C.muted, fontFamily: 'inherit' }}>Cancel</button>
+                </>
+            }
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
         <Field label="Date">
@@ -2012,10 +2115,13 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
       </Field>
       <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button className="btn btn-primary" onClick={save} disabled={saving || Number(picks.length) === 0 || !logDate}>
-          {saving ? 'Saving…' : 'Save entry'}
+          {saving ? 'Saving…' : isEditing ? 'Update entry' : 'Save entry'}
+        </button>
+        <button className="btn btn-ghost" onClick={saveAF} disabled={saving || !logDate} style={{ fontSize: 13 }}>
+          Log as alcohol-free day
         </button>
         {!saving && Number(picks.length) === 0 && (
-          <span style={{ fontSize: 12, color: C.muted }}>Add a drink to the list first</span>
+          <span style={{ fontSize: 12, color: C.muted }}>Add a drink above, or log as alcohol-free</span>
         )}
         {!saving && Number(picks.length) > 0 && !logDate && (
           <span style={{ fontSize: 12, color: C.muted }}>Set a date first</span>
@@ -2027,62 +2133,241 @@ function DrinkLogForm({ drinkTypes, onSaved }) {
   )
 }
 
-function AlcoholLogList({ alcoholLog }) {
-  const recent = (alcoholLog || []).slice(0, 14)
-  if (recent.length === 0) return (
-    <div style={{ color: C.muted, fontStyle: 'italic', fontSize: 13, padding: '12px 0' }}>No entries yet — log your first day above.</div>
-  )
+function DrinkDayList({ alcoholLog, profile, drinkTypes, onClickDay }) {
+  const days = []
+  const baselineEthanol = computeBaselineEthanolPerDay(profile, drinkTypes)
+  const baselineDT = (drinkTypes || []).find(t => t.id === profile?.baseline_drink_type_id)
+  const baselineServings = Number(profile?.baseline_servings) || 4
+
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const date = d.toISOString().slice(0, 10)
+    const entry = (alcoholLog || []).find(r => r.log_date === date)
+    const isAssumed = !entry
+    const ethanolG = isAssumed ? baselineEthanol : Number(entry.total_ethanol_g) || 0
+    const isAFDay  = !isAssumed && ethanolG === 0
+    days.push({ date, entry, isAssumed, ethanolG, isAFDay })
+  }
+
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 80px 80px 80px 80px', padding: '10px 20px', borderBottom: `1px solid ${C.rule}`, background: 'rgba(237,231,219,0.4)' }}>
-        {['Date', 'Drinks', 'Std', 'Ethanol', 'Carbs', 'kcal'].map((h, i) => (
+    <div className="card" style={{ overflow: 'hidden', marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 90px 80px 80px', padding: '10px 20px', borderBottom: `1px solid ${C.rule}`, background: 'rgba(237,231,219,0.4)' }}>
+        {['Date', 'Drinks', 'Status', 'Ethanol', 'kcal'].map((h, i) => (
           <div key={h} className="label-eyebrow" style={{ textAlign: i > 1 ? 'right' : 'left' }}>{h}</div>
         ))}
       </div>
-      {recent.map(row => {
-        const drinks = Array.isArray(row.drinks) ? row.drinks : []
-        const names = drinks.map(d => (d.qty > 1 ? `${d.qty}× ` : '') + (d.name || '')).join(', ')
+      {days.map(({ date, entry, isAssumed, ethanolG, isAFDay }) => {
+        const drinks = Array.isArray(entry?.drinks) ? entry.drinks : []
+        const rawNames = drinks.map(d => {
+          const q = d.qty ?? d.count ?? 1
+          return (q > 1 ? `${q}× ` : '') + (d.name || '')
+        }).join(', ')
+        const displayNames = isAssumed
+          ? (baselineDT ? `${baselineServings}× ${baselineDT.name} (assumed)` : 'assumed baseline')
+          : (rawNames || (isAFDay ? 'Alcohol-free day' : '—'))
+
+        const rowBg = isAssumed ? 'rgba(201,96,43,0.03)' : isAFDay ? 'rgba(59,93,68,0.04)' : 'transparent'
+        const textOpacity = isAssumed ? 0.5 : 1
+
         return (
-          <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 80px 80px 80px 80px', padding: '10px 20px', borderBottom: `1px solid ${C.rule}60`, fontSize: 13, alignItems: 'center' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(237,231,219,0.4)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          <div key={date}
+            style={{ display: 'grid', gridTemplateColumns: '120px 1fr 90px 80px 80px', padding: '10px 20px', borderBottom: `1px solid ${C.rule}60`, fontSize: 13, alignItems: 'center', background: rowBg, cursor: 'pointer', opacity: textOpacity }}
+            onClick={() => onClickDay?.(date, entry || null)}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(237,231,219,0.5)'; e.currentTarget.style.opacity = '1' }}
+            onMouseLeave={e => { e.currentTarget.style.background = rowBg; e.currentTarget.style.opacity = String(textOpacity) }}
           >
-            <div className="mono" style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' }}>{fmtDate(row.log_date, { month: 'short', day: 'numeric' })}</div>
-            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8, color: C.ink2 }}>{names || '—'}</div>
-            <div className="num" style={{ textAlign: 'right', fontSize: 15 }}>{row.total_std_drinks != null ? Number(row.total_std_drinks).toFixed(1) : '—'}</div>
-            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>{row.total_ethanol_g != null ? Math.round(row.total_ethanol_g) + 'g' : '—'}</div>
-            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>{row.total_carbs_g != null ? Number(row.total_carbs_g).toFixed(0) + 'g' : '—'}</div>
-            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>{row.total_calories != null ? Math.round(row.total_calories) : '—'}</div>
+            <div className="mono" style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' }}>{fmtDate(date, { month: 'short', day: 'numeric' })}</div>
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8, color: isAssumed ? C.muted : C.ink2, fontStyle: isAssumed ? 'italic' : 'normal' }}>{displayNames}</div>
+            <div style={{ textAlign: 'right' }}>
+              {isAFDay
+                ? <span className="pill" style={{ background: `${C.forest}18`, color: C.forest, border: `1px solid ${C.forest}40`, fontSize: 9 }}>AF DAY</span>
+                : isAssumed
+                  ? <span className="pill" style={{ background: `${C.amber}15`, color: C.amber, border: `1px solid ${C.amber}40`, fontSize: 9 }}>ASSUMED</span>
+                  : null
+              }
+            </div>
+            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>{Math.round(ethanolG)}g</div>
+            <div className="mono" style={{ textAlign: 'right', fontSize: 12, color: C.muted }}>
+              {isAssumed
+                ? Math.round(baselineDT ? Number(baselineDT.calories) * baselineServings : 0)
+                : entry?.total_calories != null ? Math.round(entry.total_calories) : '—'}
+            </div>
           </div>
         )
       })}
+      <div style={{ padding: '8px 20px', fontSize: 11, color: C.muted, fontStyle: 'italic' }}>
+        Click any day to log or edit. Faded rows are assumed baseline (no explicit entry).
+      </div>
     </div>
   )
 }
 
+// =====================================================================
+// BASELINE EDITOR
+// =====================================================================
+function BaselineEditor({ profile, drinkTypes, onSaved }) {
+  const [typeId, setTypeId] = useState(profile?.baseline_drink_type_id || '')
+  const [servings, setServings] = useState(String(profile?.baseline_servings || 4))
+  const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState(null)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await db.update('profiles', `id=eq.${USER_ID}`, {
+        baseline_drink_type_id: typeId || null,
+        baseline_servings: Number(servings) || 4
+      })
+      setSavedAt(new Date())
+      onSaved()
+    } finally { setSaving(false) }
+  }
+
+  const dt = (drinkTypes || []).find(t => t.id === typeId)
+  const ethanolPerDay = dt
+    ? (Number(dt.default_serving_oz) * 29.5735 * (Number(dt.abv) / 100) * 0.789 * (Number(servings) || 4)).toFixed(1)
+    : '0'
+
+  return (
+    <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div className="label-eyebrow">Daily Drinking Baseline</div>
+          <p style={{ fontSize: 12, color: C.muted, marginTop: 4, marginBottom: 0, lineHeight: 1.5 }}>
+            Days with no logged entry are assumed to be this amount. An explicit log (even 0 drinks) always overrides.
+          </p>
+        </div>
+        {savedAt && <span className="mono" style={{ fontSize: 11, color: C.forest }}>SAVED</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <Field label="Drink type">
+          <select className="input" value={typeId} onChange={e => setTypeId(e.target.value)} style={{ width: 220 }}>
+            <option value="">None</option>
+            {(drinkTypes || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Servings/day">
+          <input className="input" type="number" min={0} max={20} value={servings} onChange={e => setServings(e.target.value)} style={{ width: 80 }} />
+        </Field>
+        <button className="btn btn-ghost" onClick={save} disabled={saving} style={{ marginBottom: 1 }}>
+          {saving ? 'Saving…' : 'Save baseline'}
+        </button>
+        {dt && (
+          <div style={{ fontSize: 12, color: C.muted, alignSelf: 'flex-end', paddingBottom: 2 }}>
+            ≈ {ethanolPerDay}g/day · {Math.round(Number(ethanolPerDay) * 7)}g/wk assumed
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// =====================================================================
+// AF DAY COUNTER
+// =====================================================================
+function AFDayCounter({ alcoholLog }) {
+  const thisWeekStart = isoWeekStart(new Date().toISOString().slice(0, 10))
+  const thisWeekLogs  = (alcoholLog || []).filter(r => isoWeekStart(r.log_date) === thisWeekStart)
+  const afCount = thisWeekLogs.filter(r => (Number(r.total_ethanol_g) || 0) === 0).length
+  const target = 3
+  const color = afCount >= target ? C.forest : afCount >= 1 ? C.amber : C.terracotta
+
+  return (
+    <div className="card" style={{ padding: 20, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20 }}>
+      <div className="num" style={{ fontSize: 52, color, lineHeight: 1, minWidth: 48 }}>{afCount}</div>
+      <div>
+        <div className="label-eyebrow">This week — Alcohol-free days</div>
+        <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
+          Target: {target}+ per week &nbsp;·&nbsp;{' '}
+          {afCount >= target
+            ? <span style={{ color: C.forest, fontWeight: 500 }}>On track</span>
+            : <span style={{ color: C.amber }}>Need {target - afCount} more this week</span>}
+        </div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Counted from explicitly logged 0-drink entries only.</div>
+      </div>
+    </div>
+  )
+}
+
+// =====================================================================
+// DRINKS TAB
+// =====================================================================
 function DrinksTab({ data, refresh }) {
-  const latestRanking = data.drinkRankings?.[0] || null
+  const { drinkRankings, alcoholLog, drinkTypes, profile } = data
+  const [editing, setEditing] = useState(null)
+  const formRef = useRef(null)
+  const latestRanking = drinkRankings?.[0] || null
+
+  const openDay = (date, entry) => {
+    const normPick = (p) => ({ ...p, qty: Number(p.qty ?? p.count ?? 1) })
+    if (entry) {
+      setEditing({ entry, prefillDate: entry.log_date, prefillPicks: (entry.drinks || []).map(normPick) })
+    } else {
+      setEditing({ entry: null, prefillDate: date, prefillPicks: buildBaselinePicks(profile, drinkTypes) })
+    }
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  const handleSaved = () => { setEditing(null); refresh() }
+  const handleDeleted = () => { setEditing(null); refresh() }
+  const formKey = editing?.entry?.id || editing?.prefillDate || 'new'
+
   return (
     <>
       <PageHeader
         eyebrow="05 — Drinks"
         title="The drink guide."
-        subtitle="Current ranking, daily log, and symptom tracking."
+        subtitle="Current ranking, daily log, and baseline tracking."
       />
       <RankingCard ranking={latestRanking} />
 
-      <div style={{ marginTop: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div>
-            <div className="label-eyebrow">Daily log</div>
-            <h2 className="display" style={{ fontSize: 24, marginTop: 4 }}>Log a drinking day</h2>
-          </div>
+      <div style={{ marginTop: 40, display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+          <AFDayCounter alcoholLog={alcoholLog} />
+          <BaselineEditor profile={profile} drinkTypes={drinkTypes} onSaved={refresh} />
         </div>
-        <DrinkLogForm drinkTypes={data.drinkTypes || []} onSaved={refresh} />
-        <h3 className="display" style={{ fontSize: 20, marginBottom: 12 }}>Recent entries</h3>
-        <AlcoholLogList alcoholLog={data.alcoholLog} />
+
+        <div ref={formRef}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div>
+              <div className="label-eyebrow">Daily log</div>
+              <h2 className="display" style={{ fontSize: 24, marginTop: 4 }}>
+                {editing ? 'Edit entry' : 'Log a day'}
+              </h2>
+            </div>
+            {editing && (
+              <button onClick={() => setEditing(null)} className="btn btn-ghost" style={{ fontSize: 13 }}>
+                Cancel edit
+              </button>
+            )}
+          </div>
+          <DrinkLogForm
+            key={formKey}
+            drinkTypes={drinkTypes || []}
+            editEntry={editing?.entry || null}
+            prefillDate={editing?.prefillDate || TODAY_ISO}
+            prefillPicks={editing?.prefillPicks || []}
+            defaultTypeId={profile?.baseline_drink_type_id || ''}
+            onSaved={handleSaved}
+            onDeleted={handleDeleted}
+          />
+        </div>
+
+        <h3 className="display" style={{ fontSize: 20, marginBottom: 12 }}>Last 14 days</h3>
+        <DrinkDayList
+          alcoholLog={alcoholLog}
+          profile={profile}
+          drinkTypes={drinkTypes}
+          onClickDay={openDay}
+        />
       </div>
-      <IntakeLabsChart alcoholLog={data.alcoholLog} markerHistory={data.markerHistory} />
+
+      <IntakeLabsChart
+        alcoholLog={alcoholLog}
+        markerHistory={data.markerHistory}
+        profile={profile}
+        drinkTypes={drinkTypes}
+      />
     </>
   )
 }

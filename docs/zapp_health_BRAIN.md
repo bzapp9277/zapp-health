@@ -1,5 +1,5 @@
 # Zapp Health — System Brain Document
-**Last updated:** 2026-06-01 (end of evening) · **Owner:** Brad Zapp (DOB 1977-09-02)
+**Last updated:** 2026-06-04 · **Owner:** Brad Zapp (DOB 1977-09-02)
 
 > **How to use this:** Single source of truth for Brad's personal health system. Drop it into a new Claude chat or hand it to Claude Code to get oriented cold. Captures *what exists, why it was built that way, and what's still open.* This is the LIVING map — update it when something material changes (don't make new copies). Daily play-by-play lives in dated session logs instead.
 
@@ -46,7 +46,8 @@ Overview, Biomarkers, Medications, Treatments, **Drinks**, **Briefings**, For Do
 ---
 
 ## 4. Features (all live & working)
-- **Drinks tab:** Current Ranking card (color-coded tiers) + log form (drink picker -> Add to list -> Save; symptom/sleep/energy/water/journal fields; backfill date) + recent-log list + **Intake-vs-Labs correlation chart** (weekly ethanol bars vs ALT/Lipase/Trig lines; 630g baseline + 196g heavy-drinking reference lines). *Add-a-drink flow: pick -> Add (lands in list) -> Save.*
+- **Drinks tab — baseline model (2026-06-04):** Daily drinking baseline stored on `profiles` (`baseline_drink_type_id` + `baseline_servings`, default = 4× Cabernet Sauvignon). Any calendar date with NO explicit `alcohol_log` entry is assumed to be the baseline everywhere it's aggregated. An explicit entry (even 0 drinks = alcohol-free day) always overrides. Key behaviors: (a) Intake-vs-Labs chart shows logged ethanol (solid amber bar) + assumed baseline contribution (faded amber bar) as stacked bars; (b) last-14-days list shows assumed days faded/italic with "ASSUMED" badge, AF days with green "AF DAY" badge — all clickable to open log/edit form; (c) AF day counter shows this-week confirmed AF days vs 3+ target (only explicit 0-drink entries count); (d) Baseline editor card lets user change the baseline drink type and serving count, persists to DB; (e) Log form pre-selects baseline drink type by default, supports editing existing entries, deleting entries, and logging a 0-drink (alcohol-free) day via "Log as alcohol-free day" button.
+- **Drinks tab — prior features still live:** Current Ranking card (color-coded tiers) + log form (drink picker -> Add to list -> Save; symptom/sleep/energy/water/journal fields; backfill date) + **Intake-vs-Labs correlation chart** (weekly ethanol bars vs ALT/Lipase/Trig lines; 630g baseline + 196g heavy-drinking reference lines). *Add-a-drink flow: pick -> Add (lands in list) -> Save.*
 - **Briefings tab:** reverse-chron archive + reading lists + "briefing due" banner (next 2026-06-07).
 - **Health inbox** (Overview card): Gmail health to-dos.
 - **Biomarkers page:** Delta column shows **lifetime change** (`pct_change_lifetime`), tooltip shows per-marker baseline date. Colored by clinical good/bad via `better_direction` — see section 6.
