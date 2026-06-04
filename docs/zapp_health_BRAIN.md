@@ -37,8 +37,8 @@ Brad built a personal health-tracking web app ("zapp-health") to manage drinking
 - **Supabase:** project `kizrdaifculzighfngqz`, app user_id `eb3d4470-3f8b-436a-94db-783d9a744491`, RLS disabled.
 - **Stack:** Vite + React, recharts, lucide-react, top-level ErrorBoundary.
 
-### Tables (live counts, 2026-06-01)
-lab_results (295) · markers (58, has `better_direction`) · drink_types (15) · alcohol_log (7 — baseline week only; June not yet logged) · drink_rankings (2) · briefings (2) · health_inbox (3) · health_metrics (2, dormant). Also: lab_panels, medications, medication_doses, treatments, health_events, doctor_questions, reports, profiles, vitals_log + views (v_marker_scorecard, v_latest_marker_values, v_active_medications).
+### Tables (live counts, 2026-06-04)
+lab_results (295) · markers (58, has `better_direction`) · drink_types (16) · alcohol_log (7 — May 25-31 only; June un-logged days now auto-assumed at baseline) · drink_rankings (2) · briefings (2) · health_inbox (3) · health_metrics (2, dormant). Also: lab_panels, medications, medication_doses, treatments, health_events, doctor_questions, reports, profiles (now carries `baseline_drink_type_id` + `baseline_servings`), vitals_log + views (v_marker_scorecard, v_latest_marker_values, v_active_medications).
 
 ### Tabs
 Overview, Biomarkers, Medications, Treatments, **Drinks**, **Briefings**, For Doctor, Reports, Profile.
@@ -46,8 +46,14 @@ Overview, Biomarkers, Medications, Treatments, **Drinks**, **Briefings**, For Do
 ---
 
 ## 4. Features (all live & working)
-- **Drinks tab — baseline model (2026-06-04):** Daily drinking baseline stored on `profiles` (`baseline_drink_type_id` + `baseline_servings`). Current baseline: **4× Chianti** (switched from Cabernet Sauvignon 2026-06-04; ~60.7g ethanol/day, ~424.7g/week assumed). Any calendar date with NO explicit `alcohol_log` entry is assumed to be the baseline everywhere it's aggregated. An explicit entry (even 0 drinks = alcohol-free day) always overrides. Key behaviors: (a) Intake-vs-Labs chart shows logged ethanol (solid amber bar) + assumed baseline contribution (faded amber bar) as stacked bars; (b) last-14-days list shows assumed days faded/italic with "ASSUMED" badge, AF days with green "AF DAY" badge — all clickable to open log/edit form; (c) AF day counter shows this-week confirmed AF days vs 3+ target (only explicit 0-drink entries count); (d) Baseline editor card lets user change the baseline drink type and serving count, persists to DB; (e) Log form pre-selects baseline drink type by default, supports editing existing entries, deleting entries, and logging a 0-drink (alcohol-free) day via "Log as alcohol-free day" button.
-- **Drinks tab — prior features still live:** Current Ranking card (color-coded tiers) + log form (drink picker -> Add to list -> Save; symptom/sleep/energy/water/journal fields; backfill date) + **Intake-vs-Labs correlation chart** (weekly ethanol bars vs ALT/Lipase/Trig lines; 630g baseline + 196g heavy-drinking reference lines). *Add-a-drink flow: pick -> Add (lands in list) -> Save.*
+- **Drinks tab — baseline-with-overrides model (2026-06-04):** Daily drinking baseline stored on `profiles` (`baseline_drink_type_id` + `baseline_servings`). Current baseline: **4× Chianti** (13% ABV / 5 oz pour; ~60.7 g ethanol/day, ~424.7 g/week assumed). Any calendar date with NO explicit `alcohol_log` entry is assumed to be the baseline everywhere it aggregates — weekly-ethanol bars and the recent-days list. An explicit entry (even 0 drinks = alcohol-free day) always overrides. Assumed days render faded/italic with "ASSUMED" badge so they are never presented as confirmed measurements.
+  - **Chart:** Intake-vs-Labs bars are now stacked: solid amber = logged ethanol, faded amber = assumed baseline contribution. Tooltip shows per-week breakdown. The assumed floor (~425 g/wk) intentionally reads *above* logged reality until real log days pull it to their actual values.
+  - **AF-day counter:** shows this-week confirmed AF days vs 3+/week target. Counted ONLY from explicitly logged 0-drink entries. Absence of a log ≠ AF day.
+  - **Baseline editor:** card on Drinks tab to change baseline drink type and serving count; saves to `profiles`; shows computed g/day and g/week.
+  - **Last-14-days list** (replaces old recent-log list): shows all 14 days including assumed (faded/italic, ASSUMED badge) and confirmed AF days (green AF DAY badge). Click any row to open log/edit form. Tapping an assumed day prefills the form with the baseline picks for quick confirm/adjust.
+  - **Backfill/edit/delete:** log form supports editing existing entries (PATCH), deleting entries (with confirm prompt), and creating entries for any past date. "Log as alcohol-free day" button saves a 0-drink entry (the only way to earn an AF-day credit).
+  - **Fast logging:** drink picker pre-selects the baseline drink type by default.
+- **Drinks tab — prior features still live:** Current Ranking card (color-coded tiers) + log form (drink picker → Add to list → Save; symptom/sleep/energy/water/journal fields; backfill date) + **Intake-vs-Labs correlation chart** (weekly ethanol bars vs ALT/Lipase/Trig lines; 630 g Dec 2025 baseline + 196 g heavy-drinking reference lines). *Add-a-drink flow: pick → Add (lands in list) → Save.*
 - **Briefings tab:** reverse-chron archive + reading lists + "briefing due" banner (next 2026-06-07).
 - **Health inbox** (Overview card): Gmail health to-dos.
 - **Biomarkers page:** Delta column shows **lifetime change** (`pct_change_lifetime`), tooltip shows per-marker baseline date. Colored by clinical good/bad via `better_direction` — see section 6.
@@ -96,18 +102,18 @@ Research basis: spirits = strongest per-occasion pancreatitis signal; wine = non
 ---
 
 ## 8. Working rhythm
-- **Daily:** log drinks + how you felt (and no-drink days — a logged zero is data).
-- **RED FLAG:** upper-abdominal/back pain esp. after eating -> stop, hydrate, ER if escalates. (Dec 2025 pattern.)
-- **Weekly:** say "run my briefing" -> fresh research + week's logs/labs + re-rank + archive.
-- **~8 weeks:** labs -> new chart point = real verdict.
-- **Next-week targets (Edition 2):** no repeat Wed binge; 3+ AF days; Chianti/Pinot Noir over Cabernet.
+- **Daily:** log drinks + how you felt. **Absence now = assumed 4× Chianti (~60.7 g ethanol).** What keeps the picture honest: logging zeros (to earn AF-day credit) AND logging any night that was NOT 4 (lighter nights, heavier nights). A night that was truly 4 Chianti needs no entry — it's already assumed.
+- **RED FLAG:** upper-abdominal/back pain esp. after eating → stop, hydrate, ER if escalates. (Dec 2025 pattern.)
+- **Weekly:** say "run my briefing" → fresh research + week's logs/labs + re-rank + archive.
+- **~8 weeks:** labs → new chart point = real verdict.
+- **Next-week targets (Edition 2):** no repeat Wed binge; 3+ AF days (must be explicitly logged zeros); Chianti/Pinot Noir over Cabernet.
 
 ---
 
 ## 9. OPEN THREADS / TODO
 1. **RESOLVED — drink-logging bug:** Supabase numeric-as-strings crashed the form & reset the picks list (so Save stayed disabled). Fixed with `Number()` coercion + hardened Save guard + helper text + inline error. Brad confirmed logging works on his phone.
 2. **Security lockdown (PARKED at Brad's request):** real auth (magic link) + turn on RLS + rotate the leaked `sbp_8cd9...` management token (printed in many transcripts; nothing running depends on it). Brad committed to a dedicated cross-project security session "soon." Until then the deployed app + data are reachable by anyone with the URL.
-3. **Catch-up logging:** last logged = May 31 chianti; June not yet entered. Insert via Supabase connector when Brad lists the days.
+3. **Catch-up logging:** June now auto-assumed at 4× Chianti/day for every un-logged date. Only days that were NOT 4 need manual entry: zero/AF nights (to earn AF-day credit) and any heavier-than-4 nights. Brad to identify those specific dates; everything else is already covered by the baseline.
 4. **Housekeeping:** delete leftover `verify_save_button.mjs`; add `supabase/.temp` to .gitignore; save THIS brain doc + session logs into `zapp-health/docs/` and commit (version-control them with the code).
 5. **Weekly-briefing calendar reminder:** M365 connector is read-only -> can't create events directly. Options: .ics file or Graph-API event via Claude Code. In-app banner fires 2026-06-07 meanwhile.
 6. **markers.personal_notes column:** add it + hover note explaining personalized colors (e.g. "red due to polycythemia, not standard range"). Nice-to-have.
