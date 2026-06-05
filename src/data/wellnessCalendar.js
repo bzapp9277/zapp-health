@@ -8,12 +8,37 @@ export const WELLNESS_EVENTS = [
 
   // ── JUNE 2026 ────────────────────────────────────────────────────────
 
-  // At-home: forest bathing + fire pit (same night, 06-12)
   {
-    id: 'fb-2026-06-12',
+    id: 'golf-2026-06-06',
+    date: '2026-06-06',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
+  {
+    id: 'liv-2026-06-10',
+    date: '2026-06-10',
+    category: 'liv_work',
+    title: 'LIV Healthy Hydrate — IV at work',
+    location: 'at work',
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: true,
+    notes: 'For me + office people (daytime).',
+  },
+  {
+    id: 'ff-2026-06-12',
     date: '2026-06-12',
-    category: 'at_home',
-    title: 'Forest bathing + fire pit',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -22,8 +47,32 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Hoxworth donation cycle #1
+  {
+    id: 'golf-2026-06-13',
+    date: '2026-06-13',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
+  {
+    id: 'massage-chair-2026-06-17',
+    date: '2026-06-17',
+    category: 'massage_chair',
+    title: 'Massage chair day',
+    location: 'office',
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: true,
+    notes: null,
+  },
   {
     id: 'hox-2026-06-19',
     date: '2026-06-19',
@@ -41,14 +90,14 @@ export const WELLNESS_EVENTS = [
     id: 'golf-2026-06-20',
     date: '2026-06-20',
     category: 'golf',
-    title: 'Golf (AM)',
+    title: 'Golf (morning)',
     location: null,
     withKat: false,
     payer: 'self',
     isPTO: false,
     isPizzaNight: false,
     needsBooking: false,
-    notes: null,
+    notes: 'After donation — locked',
   },
   {
     id: 'labs-2026-06-22',
@@ -61,10 +110,8 @@ export const WELLNESS_EVENTS = [
     isPTO: false,
     isPizzaNight: false,
     needsBooking: true,
-    notes: 'Fasting. Easy Sun beforehand. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend).',
+    notes: 'Fasting. Easy Sun beforehand. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend). Sober weekend beforehand for a clean draw.',
   },
-
-  // Travel: Michigan
   {
     id: 'travel-michigan-2026',
     date: '2026-06-23',
@@ -82,7 +129,19 @@ export const WELLNESS_EVENTS = [
 
   // ── JULY 2026 ────────────────────────────────────────────────────────
 
-  // Local Prime IV + Kat #1
+  {
+    id: 'golf-2026-07-04',
+    date: '2026-07-04',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: 'July 4th — confirm',
+  },
   {
     id: 'primeiv-2026-07-10',
     date: '2026-07-10',
@@ -96,13 +155,24 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // At-home: forest bathing
   {
-    id: 'fb-2026-07-17',
+    id: 'golf-2026-07-11',
+    date: '2026-07-11',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
+  {
+    id: 'ff-2026-07-17',
     date: '2026-07-17',
-    category: 'at_home',
-    title: 'Forest bathing',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -111,8 +181,19 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Elite MedSpa #1
+  {
+    id: 'golf-2026-07-18',
+    date: '2026-07-18',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
   {
     id: 'elite-2026-07-24',
     date: '2026-07-24',
@@ -126,13 +207,24 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // At-home: fire pit
   {
-    id: 'fp-2026-07-31',
+    id: 'golf-2026-07-25',
+    date: '2026-07-25',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
+  {
+    id: 'ff-2026-07-31',
     date: '2026-07-31',
-    category: 'at_home',
-    title: 'Fire pit night',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -144,12 +236,24 @@ export const WELLNESS_EVENTS = [
 
   // ── AUGUST 2026 ──────────────────────────────────────────────────────
 
-  // At-home: forest bathing
   {
-    id: 'fb-2026-08-07',
+    id: 'golf-2026-08-01',
+    date: '2026-08-01',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
+  {
+    id: 'ff-2026-08-07',
     date: '2026-08-07',
-    category: 'at_home',
-    title: 'Forest bathing',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -158,8 +262,19 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Local Prime IV + Kat #2
+  {
+    id: 'golf-2026-08-08',
+    date: '2026-08-08',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
   {
     id: 'primeiv-2026-08-14',
     date: '2026-08-14',
@@ -173,8 +288,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // Travel: Florida
   {
     id: 'travel-florida-aug-2026',
     date: '2026-08-15',
@@ -189,8 +302,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Bom Dia couples massage #1
   {
     id: 'bomdia-2026-08-28',
     date: '2026-08-28',
@@ -204,10 +315,22 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
+  {
+    id: 'golf-2026-08-29',
+    date: '2026-08-29',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
 
   // ── SEPTEMBER 2026 ───────────────────────────────────────────────────
 
-  // Birthday/anniversary week blackout
   {
     id: 'blackout-bday-2026',
     date: '2026-09-04',
@@ -221,13 +344,11 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: 'Do not auto-book anything this week.',
   },
-
-  // At-home: fire pit
   {
-    id: 'fp-2026-09-11',
+    id: 'ff-2026-09-11',
     date: '2026-09-11',
-    category: 'at_home',
-    title: 'Fire pit night',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -236,8 +357,19 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Hoxworth donation cycle #2
+  {
+    id: 'golf-2026-09-12',
+    date: '2026-09-12',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
   {
     id: 'hox-2026-09-18',
     date: '2026-09-18',
@@ -255,14 +387,14 @@ export const WELLNESS_EVENTS = [
     id: 'golf-2026-09-19',
     date: '2026-09-19',
     category: 'golf',
-    title: 'Golf (AM)',
+    title: 'Golf (morning)',
     location: null,
     withKat: false,
     payer: 'self',
     isPTO: false,
     isPizzaNight: false,
     needsBooking: false,
-    notes: null,
+    notes: 'After donation — locked',
   },
   {
     id: 'labs-2026-09-22',
@@ -275,15 +407,13 @@ export const WELLNESS_EVENTS = [
     isPTO: false,
     isPizzaNight: false,
     needsBooking: true,
-    notes: 'Fasting. Easy Sun beforehand. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend).',
+    notes: 'Fasting. Easy Sun beforehand. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend). Sober Sunday + Monday beforehand for a clean draw.',
   },
-
-  // At-home: forest bathing
   {
-    id: 'fb-2026-09-25',
+    id: 'ff-2026-09-25',
     date: '2026-09-25',
-    category: 'at_home',
-    title: 'Forest bathing',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -292,10 +422,22 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
+  {
+    id: 'golf-2026-09-26',
+    date: '2026-09-26',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
 
   // ── OCTOBER 2026 ─────────────────────────────────────────────────────
 
-  // Travel: Florida
   {
     id: 'travel-florida-oct-2026',
     date: '2026-10-01',
@@ -310,8 +452,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Local Prime IV + Kat #3
   {
     id: 'primeiv-2026-10-16',
     date: '2026-10-16',
@@ -325,13 +465,24 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // At-home: forest bathing + fire pit (same night, 10-23)
   {
-    id: 'fb-fp-2026-10-23',
+    id: 'liv-2026-10-22',
+    date: '2026-10-22',
+    category: 'liv_work',
+    title: 'LIV Healthy Hydrate — IV at work',
+    location: 'at work',
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: true,
+    notes: 'HHour Advisor event.',
+  },
+  {
+    id: 'ff-2026-10-23',
     date: '2026-10-23',
-    category: 'at_home',
-    title: 'Forest bathing + fire pit',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -340,8 +491,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Elite MedSpa #2
   {
     id: 'elite-2026-10-30',
     date: '2026-10-30',
@@ -358,7 +507,6 @@ export const WELLNESS_EVENTS = [
 
   // ── NOVEMBER 2026 ────────────────────────────────────────────────────
 
-  // Local Prime IV + Kat #4
   {
     id: 'primeiv-2026-11-13',
     date: '2026-11-13',
@@ -372,13 +520,24 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // At-home: forest bathing
   {
-    id: 'fb-2026-11-20',
+    id: 'massage-chair-2026-11-18',
+    date: '2026-11-18',
+    category: 'massage_chair',
+    title: 'Massage chair day',
+    location: 'office',
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: true,
+    notes: null,
+  },
+  {
+    id: 'ff-2026-11-20',
     date: '2026-11-20',
-    category: 'at_home',
-    title: 'Forest bathing',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -387,8 +546,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Bom Dia couples massage #2
   {
     id: 'bomdia-2026-11-27',
     date: '2026-11-27',
@@ -405,7 +562,6 @@ export const WELLNESS_EVENTS = [
 
   // ── DECEMBER 2026 ────────────────────────────────────────────────────
 
-  // Travel: Fort Lauderdale boat parade
   {
     id: 'travel-fll-dec-2026',
     date: '2026-12-09',
@@ -420,8 +576,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Prime IV travel add-on (during FLL trip)
   {
     id: 'primeiv-travel-2026-12-11',
     date: '2026-12-11',
@@ -435,8 +589,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // Hoxworth donation cycle #3
   {
     id: 'hox-2026-12-18',
     date: '2026-12-18',
@@ -454,14 +606,14 @@ export const WELLNESS_EVENTS = [
     id: 'golf-2026-12-19',
     date: '2026-12-19',
     category: 'golf',
-    title: 'Golf (AM)',
+    title: 'Golf (morning)',
     location: null,
     withKat: false,
     payer: 'self',
     isPTO: false,
     isPizzaNight: false,
     needsBooking: false,
-    notes: 'Weather permitting — indoor sim or skip if frozen.',
+    notes: 'After donation — locked',
   },
   {
     id: 'labs-2026-12-22',
@@ -474,12 +626,11 @@ export const WELLNESS_EVENTS = [
     isPTO: false,
     isPizzaNight: false,
     needsBooking: true,
-    notes: 'Fasting. Tight vs Christmas. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend).',
+    notes: 'Fasting. Tight vs Christmas. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend). Sober Sunday + Monday beforehand for a clean draw.',
   },
 
   // ── JANUARY 2027 ─────────────────────────────────────────────────────
 
-  // Blackout: New Year's poker tournament
   {
     id: 'blackout-poker-2027',
     date: '2027-01-01',
@@ -493,23 +644,19 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: 'Heavy day. Recovery IV booked 01-05.',
   },
-
-  // Liv Healthy Hydrate — recovery after Jan 1 poker
   {
     id: 'liv-2027-01-05',
     date: '2027-01-05',
-    category: 'liv_healthy',
-    title: 'Liv Healthy Hydrate — IV at work, recovery',
-    location: 'At work',
+    category: 'liv_work',
+    title: 'LIV Healthy Hydrate — IV at work, recovery',
+    location: 'at work',
     withKat: false,
     payer: 'self',
     isPTO: false,
     isPizzaNight: false,
     needsBooking: true,
-    notes: 'Annual. Recovery after Jan 1 poker tournament.',
+    notes: 'Recovery after Jan 1 poker; repeats yearly.',
   },
-
-  // Local Prime IV + Kat #5
   {
     id: 'primeiv-2027-01-15',
     date: '2027-01-15',
@@ -523,8 +670,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // Elite MedSpa #3
   {
     id: 'elite-2027-01-29',
     date: '2027-01-29',
@@ -541,7 +686,19 @@ export const WELLNESS_EVENTS = [
 
   // ── FEBRUARY 2027 ────────────────────────────────────────────────────
 
-  // Local Prime IV + Kat #6
+  {
+    id: 'liv-2027-02-04',
+    date: '2027-02-04',
+    category: 'liv_work',
+    title: 'LIV Healthy Hydrate — IV at work',
+    location: 'at work',
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: true,
+    notes: 'HHour Advisor event.',
+  },
   {
     id: 'primeiv-2027-02-12',
     date: '2027-02-12',
@@ -555,8 +712,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // Travel: Fort Lauderdale spa trip
   {
     id: 'travel-fll-feb-2027',
     date: '2027-02-13',
@@ -571,8 +726,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: 'Presidents\' Day 2/15 is a holiday.',
   },
-
-  // Bom Dia couples massage #3
   {
     id: 'bomdia-2027-02-26',
     date: '2027-02-26',
@@ -589,7 +742,6 @@ export const WELLNESS_EVENTS = [
 
   // ── MARCH 2027 ───────────────────────────────────────────────────────
 
-  // Hoxworth donation cycle #4
   {
     id: 'hox-2027-03-19',
     date: '2027-03-19',
@@ -607,14 +759,14 @@ export const WELLNESS_EVENTS = [
     id: 'golf-2027-03-20',
     date: '2027-03-20',
     category: 'golf',
-    title: 'Golf (AM)',
+    title: 'Golf (morning)',
     location: null,
     withKat: false,
     payer: 'self',
     isPTO: false,
     isPizzaNight: false,
     needsBooking: false,
-    notes: 'Weather permitting.',
+    notes: 'After donation — locked',
   },
   {
     id: 'labs-2027-03-23',
@@ -627,12 +779,11 @@ export const WELLNESS_EVENTS = [
     isPTO: false,
     isPizzaNight: false,
     needsBooking: true,
-    notes: 'Fasting. Easy Sun beforehand. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend).',
+    notes: 'Fasting. Easy Sun beforehand. Tag results as post-donation (hematocrit/hgb/RBC will dip — expected, not a trend). Sober Sunday + Monday beforehand for a clean draw.',
   },
 
   // ── APRIL 2027 ───────────────────────────────────────────────────────
 
-  // Local Prime IV + Kat #7
   {
     id: 'primeiv-2027-04-09',
     date: '2027-04-09',
@@ -646,13 +797,11 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // At-home: forest bathing
   {
-    id: 'fb-2027-04-16',
+    id: 'ff-2027-04-16',
     date: '2027-04-16',
-    category: 'at_home',
-    title: 'Forest bathing',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -661,8 +810,6 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Elite MedSpa #4
   {
     id: 'elite-2027-04-23',
     date: '2027-04-23',
@@ -679,7 +826,32 @@ export const WELLNESS_EVENTS = [
 
   // ── MAY 2027 ─────────────────────────────────────────────────────────
 
-  // Local Prime IV + Kat #8
+  {
+    id: 'golf-2027-05-01',
+    date: '2027-05-01',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
+  {
+    id: 'golf-2027-05-08',
+    date: '2027-05-08',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
   {
     id: 'primeiv-2027-05-14',
     date: '2027-05-14',
@@ -693,13 +865,24 @@ export const WELLNESS_EVENTS = [
     needsBooking: true,
     notes: null,
   },
-
-  // At-home: forest bathing + fire pit (same night, 05-21)
   {
-    id: 'fb-fp-2027-05-21',
+    id: 'golf-2027-05-15',
+    date: '2027-05-15',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
+  {
+    id: 'ff-2027-05-21',
     date: '2027-05-21',
-    category: 'at_home',
-    title: 'Forest bathing + fire pit',
+    category: 'firepit_forest',
+    title: 'Fire pit + forest bathing with Kat (at home)',
     location: 'Home',
     withKat: true,
     payer: null,
@@ -708,8 +891,19 @@ export const WELLNESS_EVENTS = [
     needsBooking: false,
     notes: null,
   },
-
-  // Bom Dia couples massage #4
+  {
+    id: 'golf-2027-05-22',
+    date: '2027-05-22',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: null,
+  },
   {
     id: 'bomdia-2027-05-28',
     date: '2027-05-28',
@@ -721,6 +915,19 @@ export const WELLNESS_EVENTS = [
     isPTO: true,
     isPizzaNight: false,
     needsBooking: true,
+    notes: null,
+  },
+  {
+    id: 'golf-2027-05-29',
+    date: '2027-05-29',
+    category: 'golf',
+    title: 'Golf (morning)',
+    location: null,
+    withKat: false,
+    payer: 'self',
+    isPTO: false,
+    isPizzaNight: false,
+    needsBooking: false,
     notes: null,
   },
 ]

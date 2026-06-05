@@ -7,7 +7,8 @@ import {
 import {
   ChevronRight, Plus, Mail, Save, LogOut, Lock,
   Droplets, Activity, FlaskConical, Sparkles, Heart,
-  TreePine, Home, Plane, Ban, Stethoscope, MapPin
+  TreePine, Home, Plane, Ban, Stethoscope, MapPin,
+  Flame, Zap
 } from 'lucide-react'
 import { WELLNESS_EVENTS, PENDING_SCREENINGS_2027 } from './data/wellnessCalendar.js'
 
@@ -2562,18 +2563,19 @@ export class ErrorBoundary extends React.Component {
 // WELLNESS CALENDAR
 // =====================================================================
 const CAT_CFG = {
-  hoxworth:        { label: 'Hoxworth',        color: '#9B3522', bg: '#9B352212', icon: Droplets },
-  prime_iv:        { label: 'Prime IV + Kat',  color: '#3B5D44', bg: '#3B5D4412', icon: Activity },
-  prime_iv_travel: { label: 'Prime IV Travel', color: '#3B5D44', bg: '#3B5D4412', icon: Activity },
-  elite_medspa:    { label: 'Elite MedSpa',    color: '#C9602B', bg: '#C9602B12', icon: Sparkles },
-  bom_dia:         { label: 'Bom Dia',         color: '#C9602B', bg: '#C9602B12', icon: Heart },
-  labs:            { label: 'Fasting Labs',    color: '#1A1815', bg: '#1A181510', icon: FlaskConical },
-  golf:            { label: 'Golf',            color: '#3B5D44', bg: '#3B5D4412', icon: TreePine },
-  at_home:         { label: 'At-Home w/ Kat',  color: '#3B5D44', bg: '#3B5D4412', icon: Home },
-  travel:          { label: 'Travel',          color: '#8B8579', bg: '#8B857912', icon: Plane },
-  blackout:        { label: 'Keep Open',       color: '#9B3522', bg: '#9B352212', icon: Ban },
-  liv_healthy:     { label: 'Recovery IV',     color: '#3B5D44', bg: '#3B5D4412', icon: Droplets },
-  screening:       { label: 'Screening',       color: '#1A1815', bg: '#1A181510', icon: Stethoscope },
+  hoxworth:        { label: 'Hoxworth',           color: '#9B3522', bg: '#9B352212', icon: Droplets },
+  prime_iv:        { label: 'Prime IV + Kat',     color: '#3B5D44', bg: '#3B5D4412', icon: Activity },
+  prime_iv_travel: { label: 'Prime IV Travel',    color: '#3B5D44', bg: '#3B5D4412', icon: Activity },
+  elite_medspa:    { label: 'Elite MedSpa',       color: '#C9602B', bg: '#C9602B12', icon: Sparkles },
+  bom_dia:         { label: 'Bom Dia',            color: '#C9602B', bg: '#C9602B12', icon: Heart },
+  labs:            { label: 'Fasting Labs',       color: '#1A1815', bg: '#1A181510', icon: FlaskConical },
+  golf:            { label: 'Golf',               color: '#3B5D44', bg: '#3B5D4412', icon: TreePine },
+  firepit_forest:  { label: 'Fire Pit + Forest',  color: '#3B5D44', bg: '#3B5D4412', icon: Flame },
+  travel:          { label: 'Travel',             color: '#8B8579', bg: '#8B857912', icon: Plane },
+  blackout:        { label: 'Keep Open',          color: '#9B3522', bg: '#9B352212', icon: Ban },
+  liv_work:        { label: 'LIV IV at Work',     color: '#3B5D44', bg: '#3B5D4412', icon: Droplets },
+  massage_chair:   { label: 'Massage Chair',      color: '#C9602B', bg: '#C9602B12', icon: Zap },
+  screening:       { label: 'Screening',          color: '#1A1815', bg: '#1A181510', icon: Stethoscope },
 }
 
 function TravelBand({ ev }) {
