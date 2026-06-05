@@ -5,8 +5,11 @@ import {
   Tooltip, ReferenceArea, ReferenceLine
 } from 'recharts'
 import {
-  ChevronRight, Plus, Mail, Save, LogOut, Lock
+  ChevronRight, Plus, Mail, Save, LogOut, Lock,
+  Droplets, Activity, FlaskConical, Sparkles, Heart,
+  TreePine, Home, Plane, Ban, Stethoscope, MapPin
 } from 'lucide-react'
+import { WELLNESS_EVENTS, PENDING_SCREENINGS_2027 } from './data/wellnessCalendar.js'
 
 // =====================================================================
 // CONFIG
@@ -148,7 +151,8 @@ const NAV = [
   { id: 'briefings',    label: 'Briefings',   hint: '06' },
   { id: 'questions',    label: 'For Doctor',  hint: '07' },
   { id: 'reports',      label: 'Reports',     hint: '08' },
-  { id: 'profile',      label: 'Profile',     hint: '09' }
+  { id: 'profile',      label: 'Profile',     hint: '09' },
+  { id: 'calendar',    label: 'Calendar',    hint: '10' }
 ]
 
 function Sidebar({ tab, setTab, profile, onSignOut }) {
@@ -2555,6 +2559,291 @@ export class ErrorBoundary extends React.Component {
 }
 
 // =====================================================================
+// WELLNESS CALENDAR
+// =====================================================================
+const CAT_CFG = {
+  hoxworth:        { label: 'Hoxworth',        color: '#9B3522', bg: '#9B352212', icon: Droplets },
+  prime_iv:        { label: 'Prime IV + Kat',  color: '#3B5D44', bg: '#3B5D4412', icon: Activity },
+  prime_iv_travel: { label: 'Prime IV Travel', color: '#3B5D44', bg: '#3B5D4412', icon: Activity },
+  elite_medspa:    { label: 'Elite MedSpa',    color: '#C9602B', bg: '#C9602B12', icon: Sparkles },
+  bom_dia:         { label: 'Bom Dia',         color: '#C9602B', bg: '#C9602B12', icon: Heart },
+  labs:            { label: 'Fasting Labs',    color: '#1A1815', bg: '#1A181510', icon: FlaskConical },
+  golf:            { label: 'Golf',            color: '#3B5D44', bg: '#3B5D4412', icon: TreePine },
+  at_home:         { label: 'At-Home w/ Kat',  color: '#3B5D44', bg: '#3B5D4412', icon: Home },
+  travel:          { label: 'Travel',          color: '#8B8579', bg: '#8B857912', icon: Plane },
+  blackout:        { label: 'Keep Open',       color: '#9B3522', bg: '#9B352212', icon: Ban },
+  liv_healthy:     { label: 'Recovery IV',     color: '#3B5D44', bg: '#3B5D4412', icon: Droplets },
+  screening:       { label: 'Screening',       color: '#1A1815', bg: '#1A181510', icon: Stethoscope },
+}
+
+function TravelBand({ ev }) {
+  const startStr = fmtDate(ev.date, { month: 'short', day: 'numeric' })
+  const endStr = ev.endDate ? fmtDate(ev.endDate, { month: 'short', day: 'numeric' }) : null
+  return (
+    <div style={{
+      background: `${C.muted}18`,
+      border: `1px solid ${C.muted}40`,
+      borderRadius: 2,
+      padding: '10px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 6,
+    }}>
+      <Plane size={14} color={C.muted} />
+      <span style={{ fontWeight: 500, fontSize: 14, flex: 1 }}>{ev.title}</span>
+      <span className="mono" style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>
+        {startStr}{endStr ? ` – ${endStr}` : ''}
+      </span>
+    </div>
+  )
+}
+
+function BlackoutBand({ ev }) {
+  const dayStr = new Date(ev.date + 'T00:00:00')
+    .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  return (
+    <div style={{
+      background: `${C.terracotta}10`,
+      border: `1px dashed ${C.terracotta}50`,
+      borderRadius: 2,
+      padding: '10px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 6,
+    }}>
+      <Ban size={14} color={C.terracotta} />
+      <span style={{ fontWeight: 500, fontSize: 14, flex: 1, color: C.terracotta }}>{ev.title}</span>
+      <span className="mono" style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{dayStr}</span>
+    </div>
+  )
+}
+
+function CalEventRow({ ev, today }) {
+  const cfg = CAT_CFG[ev.category] || { label: ev.category, color: C.ink, bg: `${C.ink}10`, icon: Activity }
+  const Icon = cfg.icon
+  const isPast = ev.date < today
+  const d = new Date(ev.date + 'T00:00:00')
+  const isFriday = d.getDay() === 5
+  const dayStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+  return (
+    <div className="card" style={{
+      padding: '12px 16px',
+      marginBottom: 6,
+      opacity: isPast ? 0.52 : 1,
+      borderLeft: `3px solid ${cfg.color}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: '50%',
+          background: cfg.bg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, marginTop: 1,
+        }}>
+          <Icon size={13} color={cfg.color} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.35 }}>{ev.title}</div>
+          {ev.location && (
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <MapPin size={10} color={C.muted} />{ev.location}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+            {ev.isPTO && isFriday && (
+              <span className="pill" style={{ background: `${C.amber}18`, color: C.amber, border: `1px solid ${C.amber}35` }}>PTO Fri</span>
+            )}
+            {ev.isPTO && !isFriday && (
+              <span className="pill" style={{ background: `${C.amber}12`, color: C.amber, border: `1px solid ${C.amber}25` }}>PTO</span>
+            )}
+            {ev.isPizzaNight && (
+              <span className="pill" style={{ background: `${C.terracotta}12`, color: C.terracotta, border: `1px solid ${C.terracotta}35` }}>Pizza Night</span>
+            )}
+            {ev.withKat && (
+              <span className="pill" style={{ background: `${C.forest}10`, color: C.forest, border: `1px solid ${C.forest}25` }}>+ Kat</span>
+            )}
+            {ev.needsBooking && (
+              <span className="pill" style={{ background: `${C.ink}08`, color: C.ink2, border: `1px solid ${C.rule}` }}>Needs booking</span>
+            )}
+            {ev.payer === 'prescription' && (
+              <span className="pill" style={{ background: `${C.forest}10`, color: C.forest, border: `1px solid ${C.forest}25` }}>Rx</span>
+            )}
+          </div>
+          {ev.notes && (
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 6, fontStyle: 'italic', lineHeight: 1.45 }}>{ev.notes}</div>
+          )}
+        </div>
+        <div style={{ flexShrink: 0, textAlign: 'right', marginLeft: 8 }}>
+          <div className="mono" style={{ fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{dayStr}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CalMonthSection({ monthKey, events, today }) {
+  const [yr, mo] = monthKey.split('-').map(Number)
+  const monthLabel = new Date(yr, mo - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const isPastMonth = monthKey < today.slice(0, 7)
+  const travelEvs = events.filter(e => e.category === 'travel')
+  const blackoutEvs = events.filter(e => e.category === 'blackout')
+  const otherEvs = events.filter(e => e.category !== 'travel' && e.category !== 'blackout')
+
+  return (
+    <section style={{ marginBottom: 40 }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 12,
+        marginBottom: 12, paddingBottom: 8,
+        borderBottom: `1px solid ${C.rule}`,
+      }}>
+        <h2 className="display" style={{ fontSize: 24, margin: 0, color: isPastMonth ? C.muted : C.ink }}>{monthLabel}</h2>
+        <span className="mono" style={{ fontSize: 11, color: C.muted }}>
+          {events.length} event{events.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      {travelEvs.map(e => <TravelBand key={e.id} ev={e} />)}
+      {blackoutEvs.map(e => <BlackoutBand key={e.id} ev={e} />)}
+      {otherEvs.map(e => <CalEventRow key={e.id} ev={e} today={today} />)}
+    </section>
+  )
+}
+
+function CalendarTab() {
+  const today = new Date().toISOString().slice(0, 10)
+  const [showPast, setShowPast] = useState(false)
+
+  const grouped = useMemo(() => {
+    const map = {}
+    for (const ev of WELLNESS_EVENTS) {
+      const key = ev.date.slice(0, 7)
+      if (!map[key]) map[key] = []
+      map[key].push(ev)
+    }
+    for (const k of Object.keys(map)) {
+      map[k].sort((a, b) => a.date.localeCompare(b.date))
+    }
+    return map
+  }, [])
+
+  const monthKeys = Object.keys(grouped).sort()
+  const todayMonth = today.slice(0, 7)
+  const upcomingKeys = monthKeys.filter(k => k >= todayMonth)
+  const pastKeys = [...monthKeys.filter(k => k < todayMonth)].reverse()
+
+  const nextDonation = WELLNESS_EVENTS
+    .filter(e => e.category === 'hoxworth' && e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0]
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow="Health & Wellness"
+        title="Calendar"
+        subtitle="Recovery, restoration, and performance — Jun 2026 through May 2027."
+      />
+
+      {/* Hoxworth cycle banner */}
+      <div style={{
+        background: `${C.terracotta}10`,
+        border: `1px solid ${C.terracotta}30`,
+        borderRadius: 2,
+        padding: '12px 16px',
+        marginBottom: 32,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        flexWrap: 'wrap',
+      }}>
+        <Droplets size={16} color={C.terracotta} />
+        <span style={{ fontSize: 13, color: C.terracotta, fontWeight: 500 }}>
+          Hoxworth donation cycle rolling every ~3 months: donate, recover, labs 3 days later.
+        </span>
+        {nextDonation && (
+          <span style={{ fontSize: 13, color: C.muted }}>
+            Next: {fmtDate(nextDonation.date)}
+          </span>
+        )}
+      </div>
+
+      {/* Pending 2027 screenings */}
+      <section style={{ marginBottom: 40 }}>
+        <div style={{
+          display: 'flex', alignItems: 'baseline', gap: 12,
+          marginBottom: 12, paddingBottom: 8,
+          borderBottom: `1px solid ${C.rule}`,
+        }}>
+          <h2 className="display" style={{ fontSize: 24, margin: 0, color: C.muted }}>2027 Screenings</h2>
+          <span className="mono" style={{ fontSize: 11, color: C.muted }}>date TBD</span>
+        </div>
+        <div style={{
+          background: `${C.amber}08`,
+          border: `1px dashed ${C.amber}40`,
+          borderRadius: 2,
+          padding: '14px 16px',
+        }}>
+          <div style={{ fontWeight: 500, fontSize: 13, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, color: C.ink2 }}>
+            <Stethoscope size={13} color={C.amber} />
+            Assistant to schedule in early 2027 (dates TBD)
+          </div>
+          {PENDING_SCREENINGS_2027.map(s => (
+            <div key={s.id} style={{ marginBottom: 10, paddingLeft: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>{s.title}</div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 3, lineHeight: 1.5 }}>{s.notes}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Legend */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 6,
+        marginBottom: 32, padding: '12px 16px',
+        background: C.paper2, borderRadius: 2, border: `1px solid ${C.rule}`,
+      }}>
+        <div className="label-eyebrow" style={{ width: '100%', marginBottom: 4 }}>Legend</div>
+        {Object.entries(CAT_CFG).filter(([k]) => k !== 'screening').map(([k, cfg]) => {
+          const Icon = cfg.icon
+          return (
+            <span key={k} className="pill" style={{
+              background: cfg.bg, color: cfg.color,
+              border: `1px solid ${cfg.color}35`, gap: 5,
+            }}>
+              <Icon size={10} />{cfg.label}
+            </span>
+          )
+        })}
+        <span className="pill" style={{ background: `${C.amber}12`, color: C.amber, border: `1px solid ${C.amber}30` }}>PTO Fri</span>
+        <span className="pill" style={{ background: `${C.terracotta}12`, color: C.terracotta, border: `1px solid ${C.terracotta}30` }}>Pizza Night</span>
+        <span className="pill" style={{ background: `${C.forest}10`, color: C.forest, border: `1px solid ${C.forest}25` }}>+ Kat</span>
+      </div>
+
+      {/* Upcoming months */}
+      {upcomingKeys.map(k => (
+        <CalMonthSection key={k} monthKey={k} events={grouped[k]} today={today} />
+      ))}
+
+      {/* Past months */}
+      {pastKeys.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <button
+            className="btn btn-ghost"
+            style={{ fontSize: 13, marginBottom: 24 }}
+            onClick={() => setShowPast(p => !p)}
+          >
+            {showPast ? 'Hide' : 'Show'} past months ({pastKeys.length})
+          </button>
+          {showPast && pastKeys.map(k => (
+            <CalMonthSection key={k} monthKey={k} events={grouped[k]} today={today} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =====================================================================
 // MAIN APP — all hooks must be called before any conditional return
 // =====================================================================
 export default function App() {
@@ -2700,6 +2989,7 @@ export default function App() {
           {tab === 'questions' && <Questions data={data} refresh={loadAll} />}
           {tab === 'reports' && <Reports data={data} refresh={loadAll} />}
           {tab === 'profile' && <Profile data={data} refresh={loadAll} />}
+          {tab === 'calendar' && <CalendarTab />}
         </div>
       </main>
     </div>
