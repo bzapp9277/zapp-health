@@ -508,6 +508,20 @@ export const WELLNESS_EVENTS = [
   // ── NOVEMBER 2026 ────────────────────────────────────────────────────
 
   {
+    id: 'date-night-2026-11-06',
+    date: '2026-11-06',
+    endDate: null,
+    category: 'date_night',
+    title: 'Date night with Kat',
+    location: null,
+    withKat: true,
+    payer: null,
+    isPTO: true,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: 'Held evening 5:00-10:00pm - no booking; plans TBD',
+  },
+  {
     id: 'primeiv-2026-11-13',
     date: '2026-11-13',
     category: 'prime_iv',
@@ -838,6 +852,20 @@ export const WELLNESS_EVENTS = [
     isPizzaNight: false,
     needsBooking: false,
     notes: null,
+  },
+  {
+    id: 'date-night-2027-05-07',
+    date: '2027-05-07',
+    endDate: null,
+    category: 'date_night',
+    title: 'Date night with Kat',
+    location: null,
+    withKat: true,
+    payer: null,
+    isPTO: true,
+    isPizzaNight: false,
+    needsBooking: false,
+    notes: 'Held evening 5:00-10:00pm - no booking; plans TBD',
   },
   {
     id: 'golf-2027-05-08',

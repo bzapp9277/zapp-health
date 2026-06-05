@@ -2576,6 +2576,7 @@ const CAT_CFG = {
   blackout:        { label: 'Keep Open',          color: '#9B3522', bg: '#9B352212', icon: Ban },
   liv_work:        { label: 'LIV IV at Work',     color: '#3B5D44', bg: '#3B5D4412', icon: Droplets },
   massage_chair:   { label: 'Massage Chair',      color: '#C9602B', bg: '#C9602B12', icon: Zap },
+  date_night:      { label: 'Date Night',         color: '#C9602B', bg: '#C9602B12', icon: Heart },
   screening:       { label: 'Screening',          color: '#1A1815', bg: '#1A181510', icon: Stethoscope },
 }
 
