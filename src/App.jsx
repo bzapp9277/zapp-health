@@ -2324,7 +2324,13 @@ function DrinksTab({ data, refresh }) {
         title="The drink guide."
         subtitle="Current ranking, daily log, and baseline tracking."
       />
-      <RankingCard ranking={latestRanking} />
+
+      <IntakeLabsChart
+        alcoholLog={alcoholLog}
+        markerHistory={data.markerHistory}
+        profile={profile}
+        drinkTypes={drinkTypes}
+      />
 
       <div style={{ marginTop: 40, display: 'flex', flexDirection: 'column', gap: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -2367,12 +2373,7 @@ function DrinksTab({ data, refresh }) {
         />
       </div>
 
-      <IntakeLabsChart
-        alcoholLog={alcoholLog}
-        markerHistory={data.markerHistory}
-        profile={profile}
-        drinkTypes={drinkTypes}
-      />
+      <RankingCard ranking={latestRanking} />
     </>
   )
 }
