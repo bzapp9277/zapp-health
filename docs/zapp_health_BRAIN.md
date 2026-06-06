@@ -1,5 +1,5 @@
 # Zapp Health — System Brain Document
-**Last updated:** 2026-06-05 (evening) · **Owner:** Brad Zapp (DOB 1977-09-02)
+**Last updated:** 2026-06-06 · **Owner:** Brad Zapp (DOB 1977-09-02)
 
 > **How to use this:** Single source of truth for Brad's personal health system. Drop it into a new Claude chat or hand it to Claude Code to get oriented cold. Captures *what exists, why it was built that way, and what's still open.* This is the LIVING map — update it in place when something material changes (don't make new copies). Daily play-by-play lives in dated session logs in `docs/`.
 
@@ -108,7 +108,7 @@ Overview, Biomarkers, Medications, Treatments, **Drinks**, **Briefings**, For Do
 - date_night 2 (w/ Kat, held evening 5–10pm, NO booking: Fri Nov 6 2026 + Fri May 7 2027)
 - travel bands 5 (Michigan Jun 23–28; FL Aug 15–22; FL Oct 1–9; FLL boat parade Dec 9–13; FLL spa trip Feb 13–20 incl Presidents' Day)
 - blackout 2 (Sep 4 birthday/anniversary week 9/2–9/8 kept open; Jan 1 poker tournament)
-- 2027 screenings (pending, date TBD, Fridays/PTO): skin + dental same day (skin q3yr / dental annual, start 2027); colonoscopy (q3yr, start 2027 — St. E chart lists due ~Nov 2026; pushed to 2027 by choice)
+- 2027 screenings (pending, date TBD, Fridays/PTO): skin + dental same day (both q3yr, start 2027); colonoscopy (q3yr, start 2027 — St. E chart lists due ~Nov 2026; pushed to 2027 by choice)
 
 **Rules baked in:** Friday items are PTO (incl. at-home & date nights). Nothing local is booked inside a travel band. Golf is weekend (not PTO). Cold-weather golf (Dec/Mar donations) kept but weather-permitting. Birthday/anniversary week (9/2–9/8) and Jan-1 poker are protected. No kid/stepkid birthday (Aubree 5/19, Grant 1/31, Andie 7/1) lands on a Friday in this cycle. Analytics note: post-donation labs dip hematocrit/hgb/RBC — expected, not a real trend; flag those points.
 

@@ -966,7 +966,7 @@ export const PENDING_SCREENINGS_2027 = [
     id: 'screen-skin-dental-2027',
     category: 'screening',
     title: 'Skin check + dental (same day)',
-    notes: 'Skin every 3 years starting 2027; dental annually starting 2027. Schedule on the same day.',
+    notes: 'Both skin check and dental every 3 years starting 2027. Schedule on the same day.',
     needsBooking: true,
     isPTO: true,
   },
