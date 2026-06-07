@@ -3,6 +3,8 @@
 
 > **How to use this:** Single source of truth for Brad's personal health system. Drop it into a new Claude chat or hand it to Claude Code to get oriented cold. Captures *what exists, why it was built that way, and what's still open.* This is the LIVING map — update it in place when something material changes (don't make new copies). Daily play-by-play lives in dated session logs in `docs/`.
 
+> **Cross-chat memory — two surfaces, kept in sync:** (a) version-controlled docs in `docs/` (this BRAIN + dated session logs), read by Claude Code; (b) Supabase table `session_logs` (project `kizrdaifculzighfngqz`), one row per session, readable by any chat with the Supabase connector. To orient a cold chat: read this BRAIN doc, then query Supabase `session_logs`, `providers`, and `screening_schedule`. Every session should append a `session_logs` row AND a `docs/` session log.
+
 ---
 
 ## 0. One-paragraph summary
@@ -39,7 +41,7 @@ Brad built a personal health-tracking web app ("zapp-health") to manage drinking
 - **Commits/identity:** Claude Code commits signed `bzapp@conneticventures.com` (its git identity), not Brad's Gmail. Per-feature commits.
 
 ### Tables (live counts, 2026-06-07)
-lab_results (295) · markers (58, has `better_direction`) · drink_types (15) · alcohol_log (7 — baseline week only) · drink_rankings (2) · briefings (2) · health_inbox (3) · health_metrics (2, dormant) · providers (1) · screening_schedule (3). Also: lab_panels, medications, medication_doses, treatments, health_events, doctor_questions, reports, profiles, vitals_log + views (v_marker_scorecard, v_latest_marker_values, v_active_medications).
+lab_results (295) · markers (58, has `better_direction`) · drink_types (15) · alcohol_log (7 — baseline week only) · drink_rankings (2) · briefings (2) · health_inbox (3) · health_metrics (2, dormant) · providers (1) · screening_schedule (3) · session_logs (2). Also: lab_panels, medications, medication_doses, treatments, health_events, doctor_questions, reports, profiles, vitals_log + views (v_marker_scorecard, v_latest_marker_values, v_active_medications).
 
 ### Front-end data modules (code, not DB)
 - `src/data/wellnessCalendar.js` — **single source of truth for the Health & Wellness Calendar** (see §8). 70 events, hand-authored, version-controlled with the code. NOT in Supabase (yet — see Open Threads).
@@ -129,6 +131,7 @@ Brad's standing rule: **health data is never silently overwritten.** Uploaded do
 | Drinks | Brad logs in the app | Manual |
 | Wellness calendar | code data module; PDF → Dawna → she books real calendar | Manual (no auto-booking) |
 | Providers & screening cadence | edited via Supabase connector (chat) | Manual |
+| Session memory | `session_logs` table (Supabase) + `docs/` session logs | Manual |
 
 ---
 
