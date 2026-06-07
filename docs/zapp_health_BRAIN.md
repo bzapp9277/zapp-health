@@ -1,5 +1,5 @@
 # Zapp Health — System Brain Document
-**Last updated:** 2026-06-06 · **Owner:** Brad Zapp (DOB 1977-09-02)
+**Last updated:** 2026-06-07 · **Owner:** Brad Zapp (DOB 1977-09-02)
 
 > **How to use this:** Single source of truth for Brad's personal health system. Drop it into a new Claude chat or hand it to Claude Code to get oriented cold. Captures *what exists, why it was built that way, and what's still open.* This is the LIVING map — update it in place when something material changes (don't make new copies). Daily play-by-play lives in dated session logs in `docs/`.
 
@@ -38,8 +38,8 @@ Brad built a personal health-tracking web app ("zapp-health") to manage drinking
 - **Stack:** Vite + React, recharts, lucide-react, top-level ErrorBoundary.
 - **Commits/identity:** Claude Code commits signed `bzapp@conneticventures.com` (its git identity), not Brad's Gmail. Per-feature commits.
 
-### Tables (live counts, 2026-06-01)
-lab_results (295) · markers (58, has `better_direction`) · drink_types (15) · alcohol_log (7 — baseline week only) · drink_rankings (2) · briefings (2) · health_inbox (3) · health_metrics (2, dormant). Also: lab_panels, medications, medication_doses, treatments, health_events, doctor_questions, reports, profiles, vitals_log + views (v_marker_scorecard, v_latest_marker_values, v_active_medications).
+### Tables (live counts, 2026-06-07)
+lab_results (295) · markers (58, has `better_direction`) · drink_types (15) · alcohol_log (7 — baseline week only) · drink_rankings (2) · briefings (2) · health_inbox (3) · health_metrics (2, dormant) · providers (1) · screening_schedule (3). Also: lab_panels, medications, medication_doses, treatments, health_events, doctor_questions, reports, profiles, vitals_log + views (v_marker_scorecard, v_latest_marker_values, v_active_medications).
 
 ### Front-end data modules (code, not DB)
 - `src/data/wellnessCalendar.js` — **single source of truth for the Health & Wellness Calendar** (see §8). 70 events, hand-authored, version-controlled with the code. NOT in Supabase (yet — see Open Threads).
@@ -108,7 +108,7 @@ Overview, Biomarkers, Medications, Treatments, **Drinks**, **Briefings**, For Do
 - date_night 2 (w/ Kat, held evening 5–10pm, NO booking: Fri Nov 6 2026 + Fri May 7 2027)
 - travel bands 5 (Michigan Jun 23–28; FL Aug 15–22; FL Oct 1–9; FLL boat parade Dec 9–13; FLL spa trip Feb 13–20 incl Presidents' Day)
 - blackout 2 (Sep 4 birthday/anniversary week 9/2–9/8 kept open; Jan 1 poker tournament)
-- 2027 screenings (pending, date TBD, Fridays/PTO): skin + dental same day (both q3yr, start 2027); colonoscopy (q3yr, start 2027 — St. E chart lists due ~Nov 2026; pushed to 2027 by choice)
+- 2027 screenings (pending, date TBD, Fridays/PTO): dental cleaning ANNUAL starting 2027 at Bell Dental Group (Hyde Park, 2767 Erie Ave, Cincinnati OH 45208, 513-802-9440), booked same-day as each skin check; skin check q3yr from 2027; colonoscopy q3yr from 2027 (St. E chart listed due ~Nov 2026; pushed to 2027 by choice). Providers + cadence persist in Supabase tables `providers` and `screening_schedule`.
 
 **Rules baked in:** Friday items are PTO (incl. at-home & date nights). Nothing local is booked inside a travel band. Golf is weekend (not PTO). Cold-weather golf (Dec/Mar donations) kept but weather-permitting. Birthday/anniversary week (9/2–9/8) and Jan-1 poker are protected. No kid/stepkid birthday (Aubree 5/19, Grant 1/31, Andie 7/1) lands on a Friday in this cycle. Analytics note: post-donation labs dip hematocrit/hgb/RBC — expected, not a real trend; flag those points.
 
@@ -128,6 +128,7 @@ Brad's standing rule: **health data is never silently overwritten.** Uploaded do
 | Medications | manual, from MyChart snapshots | Manual |
 | Drinks | Brad logs in the app | Manual |
 | Wellness calendar | code data module; PDF → Dawna → she books real calendar | Manual (no auto-booking) |
+| Providers & screening cadence | edited via Supabase connector (chat) | Manual |
 
 ---
 
@@ -146,7 +147,7 @@ Brad's standing rule: **health data is never silently overwritten.** Uploaded do
 4. **RESOLVED 2026-06-05 — version control for docs:** BRAIN doc + session logs + calendar PDF now committed into `zapp-health/docs/`.
 5. **Weekly-briefing calendar reminder:** M365 read-only → can't create events. In-app banner fires 2026-06-07 meanwhile.
 6. **markers.personal_notes column:** add it + hover note for personalized colors. Nice-to-have.
-7. **NEW — Calendar lives in code, not DB:** move the 70 events into a Supabase table when in-app editing (or Dawna/automated editing) is needed. Until then, edits = Claude Code change to `wellnessCalendar.js`.
+7. **NEW — Calendar lives in code, not DB:** move the 70 events into a Supabase table when in-app editing (or Dawna/automated editing) is needed. Until then, edits = Claude Code change to `wellnessCalendar.js`. *(Update 2026-06-07: scheduling has begun migrating to Supabase via the new `providers` + `screening_schedule` tables; display calendar still lives in code.)*
 8. **NEW — Direct calendar booking (future):** the "book these onto my real calendar automatically" version needs calendar write scope (Gmail send and/or Graph write). Tie to the security session; until then, Dawna is the write layer via the save-the-date PDF.
 
 ---
