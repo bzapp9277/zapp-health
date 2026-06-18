@@ -8,7 +8,7 @@ import {
   ChevronRight, Plus, Mail, Save, LogOut, Lock,
   Droplets, Activity, FlaskConical, Sparkles, Heart,
   TreePine, Home, Plane, Ban, Stethoscope, MapPin,
-  Flame, Zap
+  Flame, Zap, TrendingDown, TrendingUp
 } from 'lucide-react'
 import { WELLNESS_EVENTS, PENDING_SCREENINGS_2027 } from './data/wellnessCalendar.js'
 
@@ -1608,6 +1608,8 @@ const LAB_CFG = [
   { code: 'triglycerides', label: 'Triglycerides', unit: 'mg/dL', color: C.terracotta, dash: '2 4'     },
 ]
 
+const BASELINE_ETHANOL_G_PER_WEEK = 630 // Dec 2025 baseline
+
 function isoWeekStart(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   const day = d.getDay()
@@ -1760,7 +1762,7 @@ function IntakeLabsChart({ alcoholLog, markerHistory, profile, drinkTypes }) {
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
-            yAxisId="ethanol" y={630}
+            yAxisId="ethanol" y={BASELINE_ETHANOL_G_PER_WEEK}
             stroke={C.muted} strokeDasharray="4 3"
             label={{ value: 'Dec 2025 baseline', position: 'insideTopLeft', fill: C.muted, fontSize: 10 }}
           />
@@ -1813,7 +1815,7 @@ function IntakeLabsChart({ alcoholLog, markerHistory, profile, drinkTypes }) {
             <svg width="26" height="8" style={{ flexShrink: 0 }}>
               <line x1="2" y1="4" x2="24" y2="4" stroke={C.muted} strokeWidth="1.5" strokeDasharray="4 3" />
             </svg>
-            <span className="mono" style={{ color: C.muted }}>630 g · Dec 2025 baseline</span>
+            <span className="mono" style={{ color: C.muted }}>{BASELINE_ETHANOL_G_PER_WEEK} g · Dec 2025 baseline</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <svg width="26" height="8" style={{ flexShrink: 0 }}>
@@ -1821,6 +1823,177 @@ function IntakeLabsChart({ alcoholLog, markerHistory, profile, drinkTypes }) {
             </svg>
             <span className="mono" style={{ color: C.muted }}>196 g · heavy-drinking line</span>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =====================================================================
+// PROGRESS VS 2025 BASELINE CHART
+// =====================================================================
+function buildProgressVsBaselineData(alcoholLog, markerHistory, profile, drinkTypes) {
+  const weekly = buildIntakeLabsData(alcoholLog, markerHistory, profile, drinkTypes)
+  const loggedWeeks = new Set((alcoholLog || []).map(r => isoWeekStart(r.log_date)))
+
+  const rows = weekly
+    .filter(w => loggedWeeks.has(w.week))
+    .map(w => {
+      const ethanolGrams = w.ethanolGLogged
+      const pctVsBaseline = Math.round(
+        ((ethanolGrams - BASELINE_ETHANOL_G_PER_WEEK) / BASELINE_ETHANOL_G_PER_WEEK) * 100
+      )
+      return { week: w.week, ethanolGrams, pctVsBaseline }
+    })
+
+  for (let i = 0; i < rows.length; i++) {
+    if (i < 3) { rows[i].rollingAvgPct = null; continue }
+    const slice = rows.slice(i - 3, i + 1)
+    rows[i].rollingAvgPct = Math.round(slice.reduce((s, r) => s + r.pctVsBaseline, 0) / slice.length)
+  }
+
+  return rows
+}
+
+function ProgressVsBaselineChart({ alcoholLog, markerHistory, profile, drinkTypes }) {
+  const rows = useMemo(
+    () => buildProgressVsBaselineData(alcoholLog, markerHistory, profile, drinkTypes),
+    [alcoholLog, markerHistory, profile, drinkTypes]
+  )
+
+  const header = (
+    <div className="label-eyebrow" style={{ color: C.amber }}>Progress vs. 2025 Baseline</div>
+  )
+
+  if (rows.length === 0) return (
+    <div className="card" style={{ padding: 24, marginTop: 24 }}>
+      {header}
+      <h2 className="display" style={{ fontSize: 28, margin: '4px 0 0' }}>Where you stand.</h2>
+      <p style={{ fontSize: 13, color: C.muted, marginTop: 12, fontStyle: 'italic' }}>
+        Log a few more weeks to see your trend line.
+      </p>
+    </div>
+  )
+
+  const hasRolling = rows.length >= 4
+  const lastRow = rows[rows.length - 1]
+  const headlinePct = hasRolling ? lastRow.rollingAvgPct : lastRow.pctVsBaseline
+  const headlineGood = headlinePct <= 0
+  const lineGood = lastRow.pctVsBaseline <= 0
+  const lineColor = lineGood ? C.forest : C.terracotta
+
+  const maxPct = Math.max(
+    20,
+    ...rows.map(r => r.pctVsBaseline),
+    ...rows.map(r => r.rollingAvgPct).filter(v => v != null)
+  )
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null
+    const d = payload[0]?.payload || {}
+    return (
+      <div style={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 2, padding: '10px 14px', fontSize: 12, fontFamily: 'Inter Tight', minWidth: 180 }}>
+        <div className="mono" style={{ color: C.muted, fontSize: 10, marginBottom: 8, textTransform: 'uppercase' }}>
+          Week of {fmtDate(label)}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          Ethanol: <span className="num" style={{ fontWeight: 600 }}>{d.ethanolGrams}</span> g
+        </div>
+        <div>
+          vs baseline: <span className="num" style={{ fontWeight: 600, color: d.pctVsBaseline <= 0 ? C.forest : C.terracotta }}>
+            {d.pctVsBaseline > 0 ? '+' : ''}{d.pctVsBaseline}%
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card" style={{ padding: 24, marginTop: 24 }}>
+      <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.rule}` }}>
+        {header}
+        <h2 className="display" style={{ fontSize: 28, margin: '4px 0 0' }}>Where you stand.</h2>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
+          {headlineGood ? <TrendingDown size={28} color={C.forest} /> : <TrendingUp size={28} color={C.terracotta} />}
+          <span className="display" style={{ fontSize: 36, color: headlineGood ? C.forest : C.terracotta }}>
+            {headlinePct > 0 ? '+' : ''}{headlinePct}%
+          </span>
+        </div>
+        <p style={{ fontSize: 13, color: C.muted, marginTop: 8, lineHeight: 1.55 }}>
+          vs your Dec 2025 baseline of {BASELINE_ETHANOL_G_PER_WEEK} g ethanol/week. Lower is better.
+        </p>
+      </div>
+
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={rows} margin={{ top: 16, right: 56, left: 8, bottom: 8 }}>
+          <CartesianGrid stroke={C.rule} strokeDasharray="0" vertical={false} />
+          <XAxis
+            dataKey="week"
+            tickFormatter={fmtDateShort}
+            stroke={C.muted}
+            tickLine={false}
+            axisLine={{ stroke: C.rule }}
+            minTickGap={56}
+          />
+          <YAxis
+            stroke={C.muted}
+            tickLine={false}
+            axisLine={{ stroke: C.rule }}
+            width={52}
+            domain={[-100, maxPct]}
+            tickFormatter={v => `${v}%`}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <ReferenceLine
+            y={0}
+            stroke={C.muted} strokeDasharray="4 3"
+            label={{ value: `2025 baseline (${BASELINE_ETHANOL_G_PER_WEEK}g/wk)`, position: 'insideTopLeft', fill: C.muted, fontSize: 10 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="pctVsBaseline"
+            stroke={lineColor}
+            strokeWidth={2}
+            dot={{ r: 4, fill: lineColor, stroke: C.cream, strokeWidth: 1.5 }}
+            activeDot={{ r: 5 }}
+            isAnimationActive={false}
+          />
+          {hasRolling && (
+            <Line
+              type="monotone"
+              dataKey="rollingAvgPct"
+              stroke={`${lineColor}88`}
+              strokeWidth={2}
+              strokeDasharray="5 3"
+              dot={false}
+              connectNulls
+              isAnimationActive={false}
+            />
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.rule}`, display: 'flex', flexWrap: 'wrap', gap: 20, fontSize: 11, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="26" height="8" style={{ flexShrink: 0 }}>
+            <line x1="2" y1="4" x2="24" y2="4" stroke={lineColor} strokeWidth="2" />
+          </svg>
+          <span className="mono" style={{ color: C.muted }}>Weekly % vs baseline</span>
+        </div>
+        {hasRolling && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="26" height="8" style={{ flexShrink: 0 }}>
+              <line x1="2" y1="4" x2="24" y2="4" stroke={`${lineColor}88`} strokeWidth="2" strokeDasharray="5 3" />
+            </svg>
+            <span className="mono" style={{ color: C.muted }}>Trailing 4-week average</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="26" height="8" style={{ flexShrink: 0 }}>
+            <line x1="2" y1="4" x2="24" y2="4" stroke={C.muted} strokeWidth="1.5" strokeDasharray="4 3" />
+          </svg>
+          <span className="mono" style={{ color: C.muted }}>0% · 2025 baseline ({BASELINE_ETHANOL_G_PER_WEEK}g/wk)</span>
         </div>
       </div>
     </div>
@@ -2326,6 +2499,13 @@ function DrinksTab({ data, refresh }) {
       />
 
       <IntakeLabsChart
+        alcoholLog={alcoholLog}
+        markerHistory={data.markerHistory}
+        profile={profile}
+        drinkTypes={drinkTypes}
+      />
+
+      <ProgressVsBaselineChart
         alcoholLog={alcoholLog}
         markerHistory={data.markerHistory}
         profile={profile}
