@@ -1,5 +1,5 @@
 # Zapp Health — System Brain Document
-**Last updated:** 2026-06-07 · **Owner:** Brad Zapp (DOB 1977-09-02)
+**Last updated:** 2026-06-18 · **Owner:** Brad Zapp (DOB 1977-09-02)
 
 > **How to use this:** Single source of truth for Brad's personal health system. Drop it into a new Claude chat or hand it to Claude Code to get oriented cold. Captures *what exists, why it was built that way, and what's still open.* This is the LIVING map — update it in place when something material changes (don't make new copies). Daily play-by-play lives in dated session logs in `docs/`.
 
@@ -52,7 +52,7 @@ Overview, Biomarkers, Medications, Treatments, **Drinks**, **Briefings**, For Do
 ---
 
 ## 4. Features (all live & working)
-- **Drinks tab** *(section order updated 2026-06-05 → chart TOP, entry MIDDLE, rules BOTTOM)*: (1) Intake-vs-Labs correlation chart on top (weekly ethanol bars vs ALT/Lipase/Trig lines; 630g baseline + 196g heavy-drinking reference lines); (2) data entry in the middle — AF-day counter + baseline editor grid, then the log form (drink picker → Add to list → Save; symptom/sleep/energy/water/journal fields; backfill date), then the recent-log list; (3) Current Ranking card with color-coded tiers + pattern rule at the bottom.
+- **Drinks tab** *(section order updated 2026-06-05 → chart TOP, entry MIDDLE, rules BOTTOM)*: (1) Intake-vs-Labs correlation chart on top (weekly ethanol bars vs ALT/Lipase/Trig lines; 630g baseline + 196g heavy-drinking reference lines); (1b) Progress-vs-Baseline % chart directly under it — each logged week's ethanol as a % above/below the Dec-2025 baseline of 630 g/wk; weekly line + dashed 4-week trailing-average overlay; zero-line reference labeled "2025 baseline (630g/wk)"; green below / red above (lower is better); headline stat = trailing-4-week average with TrendingDown/Up icon. Baseline now lives in a shared BASELINE_ETHANOL_G_PER_WEEK constant used by both Drinks-tab charts; (2) data entry in the middle — AF-day counter + baseline editor grid, then the log form (drink picker → Add to list → Save; symptom/sleep/energy/water/journal fields; backfill date), then the recent-log list; (3) Current Ranking card with color-coded tiers + pattern rule at the bottom.
 - **Calendar tab** (new — see §8).
 - **Briefings tab:** reverse-chron archive + reading lists + "briefing due" banner (next 2026-06-07).
 - **Health inbox** (Overview card): Gmail health to-dos.
@@ -146,7 +146,7 @@ Brad's standing rule: **health data is never silently overwritten.** Uploaded do
 ## 11. OPEN THREADS / TODO
 1. **RESOLVED — drink-logging bug** (numeric-as-strings). Fixed; Brad confirmed on phone.
 2. **Security lockdown (PARKED at Brad's request):** real auth (magic link) + turn on RLS + rotate the leaked `sbp_8cd9...` management token. App + data reachable by anyone with the URL until then. Brad committed to a dedicated cross-project security session "soon."
-3. **Catch-up logging:** last logged = May 31 chianti; June not yet entered. Insert via Supabase connector when Brad lists the days.
+3. **Catch-up logging:** last logged = May 31 chianti; June not yet entered. Insert via Supabase connector when Brad lists the days. (2026-06-18: Progress-vs-Baseline chart now plots 4 weeks 5/25–6/15 — confirm June logging is fully complete/accurate so the % trend is trustworthy.)
 4. **RESOLVED 2026-06-05 — version control for docs:** BRAIN doc + session logs + calendar PDF now committed into `zapp-health/docs/`.
 5. **Weekly-briefing calendar reminder:** M365 read-only → can't create events. In-app banner fires 2026-06-07 meanwhile.
 6. **markers.personal_notes column:** add it + hover note for personalized colors. Nice-to-have.
