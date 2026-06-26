@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import {
   LineChart, Line, ComposedChart, Bar,
   ResponsiveContainer, XAxis, YAxis, CartesianGrid,
@@ -18,11 +19,15 @@ import { WELLNESS_EVENTS, PENDING_SCREENINGS_2027 } from './data/wellnessCalenda
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const ANON_KEY     = import.meta.env.VITE_SUPABASE_ANON_KEY
 const USER_ID = 'eb3d4470-3f8b-436a-94db-783d9a744491'
-const AUTHORIZED_EMAIL = 'brjack2177@gmail.com'
 const AUTH_KEY = 'zh_authed'
 
+// Supabase client — handles session storage and JWT refresh automatically.
+// detectSessionInUrl=true (default) reads the access_token from the magic-link
+// callback URL hash and establishes the session without any extra code.
+const supabase = createClient(SUPABASE_URL, ANON_KEY)
+
 // =====================================================================
-// API LAYER — direct fetch to Supabase REST with anon key
+// API LAYER — direct fetch to Supabase REST, using session JWT when available
 // =====================================================================
 function buildQS(params = {}) {
   const usp = new URLSearchParams()
@@ -34,11 +39,16 @@ function buildQS(params = {}) {
 }
 
 async function apiCall(method, path, body) {
+  // Use the active session JWT so tables with authenticated-only RLS policies
+  // (like drink_types) respond correctly. Falls back to the anon key for public
+  // tables if there is no active session yet.
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token ?? ANON_KEY
   const res = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
     method,
     headers: {
       'apikey': ANON_KEY,
-      'Authorization': `Bearer ${ANON_KEY}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
       'Prefer': method === 'POST' || method === 'PATCH' ? 'return=representation' : ''
     },
@@ -2657,17 +2667,30 @@ function BriefingsTab({ data }) {
 }
 
 // =====================================================================
-// LOGIN SCREEN — type your email, you're in. No links, no OTP.
+// LOGIN SCREEN — email OTP (magic link). Session stored by supabase-js
+// so the user only needs to click the link once; subsequent visits
+// auto-restore the session from localStorage.
 // =====================================================================
-function LoginScreen({ onAuth }) {
+function LoginScreen() {
   const [email, setEmail] = useState('')
-  const [wrong, setWrong] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
 
-  const attempt = () => {
-    if (email.trim().toLowerCase() === AUTHORIZED_EMAIL) {
-      onAuth()
+  const attempt = async () => {
+    const addr = email.trim().toLowerCase()
+    if (!addr) return
+    setBusy(true)
+    setErr(null)
+    const { error } = await supabase.auth.signInWithOtp({
+      email: addr,
+      options: { shouldCreateUser: false },
+    })
+    setBusy(false)
+    if (error) {
+      setErr(error.message || 'Sign-in failed — make sure this email is registered.')
     } else {
-      setWrong(true)
+      setSent(true)
     }
   }
 
@@ -2679,31 +2702,49 @@ function LoginScreen({ onAuth }) {
         <h1 className="display" style={{ fontSize: 44, lineHeight: 1, margin: '4px 0 28px' }}>
           Zapp<span style={{ color: C.amber }}>.</span>
         </h1>
-        <div style={{ marginBottom: 16 }}>
-          <div className="label-eyebrow" style={{ marginBottom: 6 }}>Email</div>
-          <input
-            className="input"
-            type="email"
-            placeholder="your email"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setWrong(false) }}
-            onKeyDown={e => e.key === 'Enter' && attempt()}
-            autoFocus
-          />
-        </div>
-        {wrong && (
-          <div style={{ marginBottom: 12, fontSize: 13, color: C.terracotta }}>
-            That email isn't authorized.
+        {sent ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>Check your email</div>
+            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+              A sign-in link was sent to <strong>{email}</strong>.
+              Click it to open the app — no password needed.
+            </div>
+            <button
+              className="btn btn-ghost"
+              style={{ marginTop: 20, fontSize: 13 }}
+              onClick={() => { setSent(false); setEmail('') }}
+            >
+              Use a different email
+            </button>
           </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <div className="label-eyebrow" style={{ marginBottom: 6 }}>Email</div>
+              <input
+                className="input"
+                type="email"
+                placeholder="your email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setErr(null) }}
+                onKeyDown={e => e.key === 'Enter' && !busy && attempt()}
+                autoFocus
+              />
+            </div>
+            {err && (
+              <div style={{ marginBottom: 12, fontSize: 13, color: C.terracotta }}>{err}</div>
+            )}
+            <button
+              className="btn btn-primary"
+              onClick={attempt}
+              disabled={!email.trim() || busy}
+              style={{ width: '100%' }}
+            >
+              {busy ? 'Sending…' : 'Send sign-in link'}
+            </button>
+          </>
         )}
-        <button
-          className="btn btn-primary"
-          onClick={attempt}
-          disabled={!email.trim()}
-          style={{ width: '100%' }}
-        >
-          Sign in
-        </button>
       </div>
     </div>
   )
@@ -3037,7 +3078,8 @@ export default function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
-  const [authed, setAuthed] = useState(() => localStorage.getItem(AUTH_KEY) === '1')
+  // Start authed if localStorage flag set AND supabase session exists (checked below).
+  const [authed, setAuthed] = useState(false)
 
   // useMemo MUST be here — before any early return — or React throws
   // "Rendered more hooks than during the previous render" on auth state change
@@ -3099,20 +3141,39 @@ export default function App() {
     }
   }
 
+  // On mount: restore session from supabase-js (covers magic-link callback
+  // where the URL hash carries the access_token, and normal page reloads
+  // where supabase-js auto-refreshes from localStorage).
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        localStorage.setItem(AUTH_KEY, '1')
+        setAuthed(true)
+      }
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        localStorage.setItem(AUTH_KEY, '1')
+        setAuthed(true)
+      } else {
+        localStorage.removeItem(AUTH_KEY)
+        setAuthed(false)
+        setData(null)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
   useEffect(() => { if (authed) loadAll() }, [authed])
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
     localStorage.removeItem(AUTH_KEY)
     setAuthed(false)
     setData(null)
   }
 
-  const handleAuth = () => {
-    localStorage.setItem(AUTH_KEY, '1')
-    setAuthed(true)
-  }
-
-  if (!authed) return <LoginScreen onAuth={handleAuth} />
+  if (!authed) return <LoginScreen />
 
   if (error) {
     return (
