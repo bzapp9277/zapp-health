@@ -1609,6 +1609,16 @@ function bpStatus(sys, dia) {
 
 const hasBP = (v) => v && v.systolic_bp != null && v.diastolic_bp != null
 
+// Personal-trend delta vs. the user's own baseline. Lower is the good
+// direction for BP, so a decrease is an improvement (down arrow / green)
+// and an increase is caution (up arrow / amber). No change is neutral.
+function bpDelta(latestVal, baselineVal) {
+  const delta = latestVal - baselineVal
+  if (delta < 0) return { glyph: '↓', color: C.forest, magnitude: Math.abs(delta) }
+  if (delta > 0) return { glyph: '↑', color: C.amber, magnitude: delta }
+  return { glyph: '–', color: C.muted, magnitude: 0 }
+}
+
 function BPTrendChart({ rows }) {
   if (!rows || rows.length === 0) {
     return (
@@ -1765,6 +1775,9 @@ function BloodPressureTab({ data, refresh }) {
   // vitals arrive ordered recorded_on.desc; chart wants ascending.
   const chartRows = useMemo(() => [...bpRows].reverse(), [bpRows])
   const latest = bpRows[0] || null
+  // bpRows is ordered recorded_on.desc, so the earliest non-null reading
+  // (the user's baseline) is the last element.
+  const baseline = bpRows.length ? bpRows[bpRows.length - 1] : null
   const status = latest ? bpStatus(latest.systolic, latest.diastolic) : null
 
   return (
@@ -1795,6 +1808,24 @@ function BloodPressureTab({ data, refresh }) {
                   </span>
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>{status.note}</div>
                 </div>
+              )}
+              {baseline && (
+                bpRows.length === 1 ? (
+                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.rule}`, fontSize: 12, color: C.muted, fontStyle: 'italic', lineHeight: 1.5 }}>
+                    Baseline reading — log another to see your trend.
+                  </div>
+                ) : (() => {
+                  const ds = bpDelta(latest.systolic, baseline.systolic)
+                  const dd = bpDelta(latest.diastolic, baseline.diastolic)
+                  return (
+                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.rule}`, fontSize: 12, lineHeight: 1.6 }}>
+                      <span className="mono" style={{ color: ds.color, fontWeight: 500 }}>{ds.glyph} {ds.magnitude} systolic</span>
+                      <span style={{ color: C.muted }}> · </span>
+                      <span className="mono" style={{ color: dd.color, fontWeight: 500 }}>{dd.glyph} {dd.magnitude} diastolic</span>
+                      <span style={{ color: C.muted }}> &nbsp;vs. baseline ({fmtDate(baseline.date)})</span>
+                    </div>
+                  )
+                })()
               )}
             </>
           ) : (
