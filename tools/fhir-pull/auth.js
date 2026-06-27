@@ -18,7 +18,10 @@ const AUTH_URL = 'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/authorize'
 const TOKEN_URL = 'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/token'
 const FHIR_BASE = 'https://sehproxy.stelizabeth.com/arr-fhir/SEH/api/FHIR/R4'
 
-// SMART v2 scopes (permission-v2 confirmed in .well-known/smart-configuration)
+// SMART scopes — request only the APIs registered in the Epic app.
+// Procedure omitted: not in the initial set of registered APIs.
+// Epic will only grant scopes the app was registered for; requesting extras
+// causes the authorize request to fail rather than silently downscoping.
 const SCOPES = [
   'openid',
   'fhirUser',
@@ -30,7 +33,6 @@ const SCOPES = [
   'patient/AllergyIntolerance.read',
   'patient/Immunization.read',
   'patient/DiagnosticReport.read',
-  'patient/Procedure.read',
 ].join(' ')
 
 function generatePkce() {
@@ -178,21 +180,27 @@ async function doFullAuthFlow(clientId) {
 
   if (!tokenRes.ok) {
     const text = await tokenRes.text()
+    // Surface the full body so we can tell "client_id not recognized" from
+    // "invalid_grant" from network errors
     throw new Error(`Token exchange failed (${tokenRes.status}): ${text}`)
   }
 
   const tok = await tokenRes.json()
-  if (!tok.access_token) throw new Error('Token response contained no access_token')
+  if (!tok.access_token) {
+    throw new Error(`Token response contained no access_token. Full response: ${JSON.stringify(tok)}`)
+  }
 
   const patientId = tok.patient
   if (!patientId) {
     throw new Error(
-      'Token response had no patient context. ' +
-      'Ensure your Epic app registration includes the patient/Patient.read scope ' +
-      'and is configured for standalone patient launch.'
+      'Token response had no patient context (tok.patient missing). ' +
+      'Possible causes: client not yet distributed to production by Epic, ' +
+      'or app not configured for standalone patient launch. ' +
+      `Full token response: ${JSON.stringify(tok)}`
     )
   }
 
+  console.log(`  Granted scopes: ${tok.scope ?? '(not reported)'}`)
   return { tok, patientId }
 }
 

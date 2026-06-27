@@ -26,6 +26,8 @@ const { fetchAllResources } = await import('./fhir.js')
 const { upsertAll } = await import('./upsert.js')
 
 const FHIR_BASE = 'https://sehproxy.stelizabeth.com/arr-fhir/SEH/api/FHIR/R4'
+// Resource types to fetch. The fetcher skips any type the server returns
+// 401/403/404 for (scope not granted), so listing extras is safe.
 const RESOURCE_TYPES = [
   'Patient',
   'Observation',
