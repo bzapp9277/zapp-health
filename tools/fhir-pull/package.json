@@ -1,0 +1,6 @@
+{
+  "name": "zapp-health-fhir-pull",
+  "version": "1.0.0",
+  "type": "module",
+  "engines": { "node": ">=18" }
+}
