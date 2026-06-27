@@ -1614,9 +1614,12 @@ const hasBP = (v) => v && v.systolic_bp != null && v.diastolic_bp != null
 // and an increase is caution (up arrow / amber). No change is neutral.
 function bpDelta(latestVal, baselineVal) {
   const delta = latestVal - baselineVal
-  if (delta < 0) return { glyph: '↓', color: C.forest, magnitude: Math.abs(delta) }
-  if (delta > 0) return { glyph: '↑', color: C.amber, magnitude: delta }
-  return { glyph: '–', color: C.muted, magnitude: 0 }
+  // Percent change vs. baseline; abs for display since the arrow shows
+  // direction. Guard against divide-by-zero defensively (BP is always > 0).
+  const pct = baselineVal ? Math.round(Math.abs(delta / baselineVal) * 1000) / 10 : null
+  if (delta < 0) return { glyph: '↓', color: C.forest, magnitude: Math.abs(delta), pct }
+  if (delta > 0) return { glyph: '↑', color: C.amber, magnitude: delta, pct }
+  return { glyph: '–', color: C.muted, magnitude: 0, pct }
 }
 
 function BPTrendChart({ rows }) {
@@ -1819,9 +1822,9 @@ function BloodPressureTab({ data, refresh }) {
                   const dd = bpDelta(latest.diastolic, baseline.diastolic)
                   return (
                     <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.rule}`, fontSize: 12, lineHeight: 1.6 }}>
-                      <span className="mono" style={{ color: ds.color, fontWeight: 500 }}>{ds.glyph} {ds.magnitude} systolic</span>
+                      <span className="mono" style={{ color: ds.color, fontWeight: 500 }}>{ds.glyph} {ds.magnitude} systolic{ds.pct != null ? ` (${ds.pct}%)` : ''}</span>
                       <span style={{ color: C.muted }}> · </span>
-                      <span className="mono" style={{ color: dd.color, fontWeight: 500 }}>{dd.glyph} {dd.magnitude} diastolic</span>
+                      <span className="mono" style={{ color: dd.color, fontWeight: 500 }}>{dd.glyph} {dd.magnitude} diastolic{dd.pct != null ? ` (${dd.pct}%)` : ''}</span>
                       <span style={{ color: C.muted }}> &nbsp;vs. baseline ({fmtDate(baseline.date)})</span>
                     </div>
                   )
