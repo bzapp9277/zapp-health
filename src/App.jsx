@@ -3151,14 +3151,14 @@ export default function App() {
         setAuthed(true)
       }
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        localStorage.setItem(AUTH_KEY, '1')
-        setAuthed(true)
-      } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
         localStorage.removeItem(AUTH_KEY)
         setAuthed(false)
         setData(null)
+      } else if (session) {
+        localStorage.setItem(AUTH_KEY, '1')
+        setAuthed(true)
       }
     })
     return () => subscription.unsubscribe()
