@@ -13,7 +13,8 @@ const __dir = dirname(fileURLToPath(import.meta.url))
 // Load .env before any module-level code in imported modules reads process.env
 const envFile = resolve(__dir, '.env')
 if (existsSync(envFile)) {
-  for (const line of readFileSync(envFile, 'utf8').split('\n')) {
+  const raw = readFileSync(envFile, 'utf8').replace(/^﻿/, '') // strip UTF-8 BOM if present
+  for (const line of raw.split(/\r?\n/)) {
     const m = line.match(/^([A-Z0-9_]+)\s*=\s*(.*)$/)
     if (m && !process.env[m[1]]) {
       process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '')

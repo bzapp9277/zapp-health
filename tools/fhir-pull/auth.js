@@ -11,7 +11,7 @@ import { exec } from 'child_process'
 
 const __dir = dirname(fileURLToPath(import.meta.url))
 const TOKEN_FILE = resolve(__dir, '.token.json')
-const REDIRECT_URI = 'http://localhost:8765/callback'
+const REDIRECT_URI = 'http://127.0.0.1:8765/callback'
 const CALLBACK_PORT = 8765
 
 const AUTH_URL = 'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/authorize'
@@ -130,7 +130,7 @@ p{color:#8B8579;line-height:1.6}
       }
     })
 
-    server.listen(CALLBACK_PORT, 'localhost')
+    server.listen(CALLBACK_PORT, '127.0.0.1')
 
     // 5-minute timeout
     setTimeout(() => {

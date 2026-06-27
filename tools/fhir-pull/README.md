@@ -39,7 +39,7 @@ Required registration values:
 |-------|-------|
 | Application Audience | Patient-facing |
 | Application Type | Public client |
-| Redirect URI | `http://localhost:8765/callback` |
+| Redirect URI | `http://127.0.0.1:8765/callback` |
 | Scopes | `openid fhirUser offline_access patient/Patient.read patient/Observation.read patient/Condition.read patient/MedicationRequest.read patient/AllergyIntolerance.read patient/Immunization.read patient/DiagnosticReport.read patient/Procedure.read` |
 | PKCE | S256 (required) |
 
