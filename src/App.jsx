@@ -154,16 +154,17 @@ const STYLE = `
 // SIDEBAR
 // =====================================================================
 const NAV = [
-  { id: 'overview',     label: 'Overview',    hint: '01' },
-  { id: 'markers',      label: 'Biomarkers',  hint: '02' },
-  { id: 'medications',  label: 'Medications', hint: '03' },
-  { id: 'treatments',   label: 'Treatments',  hint: '04' },
-  { id: 'drinks',       label: 'Drinks',      hint: '05' },
-  { id: 'briefings',    label: 'Briefings',   hint: '06' },
-  { id: 'questions',    label: 'For Doctor',  hint: '07' },
-  { id: 'reports',      label: 'Reports',     hint: '08' },
-  { id: 'profile',      label: 'Profile',     hint: '09' },
-  { id: 'calendar',    label: 'Calendar',    hint: '10' }
+  { id: 'overview',      label: 'Overview',       hint: '01' },
+  { id: 'bloodpressure', label: 'Blood Pressure', hint: '02' },
+  { id: 'markers',       label: 'Biomarkers',     hint: '03' },
+  { id: 'medications',   label: 'Medications',    hint: '04' },
+  { id: 'treatments',    label: 'Treatments',     hint: '05' },
+  { id: 'drinks',        label: 'Drinks',         hint: '06' },
+  { id: 'briefings',     label: 'Briefings',      hint: '07' },
+  { id: 'questions',     label: 'For Doctor',     hint: '08' },
+  { id: 'reports',       label: 'Reports',        hint: '09' },
+  { id: 'profile',       label: 'Profile',        hint: '10' },
+  { id: 'calendar',      label: 'Calendar',       hint: '11' }
 ]
 
 function Sidebar({ tab, setTab, profile, onSignOut }) {
@@ -1583,6 +1584,281 @@ function Field({ label, children }) {
       <div className="label-eyebrow" style={{ marginBottom: 4 }}>{label}</div>
       {children}
     </div>
+  )
+}
+
+// =====================================================================
+// BLOOD PRESSURE
+// =====================================================================
+// Color status. Lower-in-range is better for this user; we take the more
+// severe of the systolic vs diastolic reading by evaluating most-severe-first.
+const BP_STATUS = {
+  normal:   { label: 'Normal',   color: C.forest,     note: 'Systolic < 120 and diastolic < 80.' },
+  elevated: { label: 'Elevated', color: '#C9A227',    note: 'Systolic 120–129 with diastolic < 80.' },
+  stage1:   { label: 'Stage 1',  color: C.amber,      note: 'Systolic 130–139 or diastolic 80–89.' },
+  stage2:   { label: 'Stage 2',  color: C.terracotta, note: 'Systolic ≥ 140 or diastolic ≥ 90.' },
+}
+
+function bpStatus(sys, dia) {
+  if (sys == null || dia == null) return null
+  if (sys >= 140 || dia >= 90) return BP_STATUS.stage2
+  if (sys >= 130 || dia >= 80) return BP_STATUS.stage1
+  if (sys >= 120) return BP_STATUS.elevated
+  return BP_STATUS.normal
+}
+
+const hasBP = (v) => v && v.systolic_bp != null && v.diastolic_bp != null
+
+function BPTrendChart({ rows }) {
+  if (!rows || rows.length === 0) {
+    return (
+      <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontStyle: 'italic', fontSize: 14 }}>
+        No blood-pressure readings logged yet. Add one below to start the trend.
+      </div>
+    )
+  }
+  const vals = rows.flatMap(r => [r.systolic, r.diastolic])
+  const min = Math.min(...vals, 80)
+  const max = Math.max(...vals, 120)
+  const pad = (max - min) * 0.18 || 1
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={rows} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
+        <CartesianGrid stroke={C.rule} strokeDasharray="0" vertical={false} />
+        <XAxis dataKey="date" tickFormatter={fmtDateShort} stroke={C.muted} tickLine={false} axisLine={{ stroke: C.rule }} />
+        <YAxis domain={[min - pad, max + pad]} stroke={C.muted} tickLine={false} axisLine={{ stroke: C.rule }} width={48} />
+        <ReferenceLine y={120} stroke={C.terracotta} strokeDasharray="3 3" strokeOpacity={0.55}
+          label={{ value: 'sys 120', position: 'insideTopRight', fill: C.terracotta, fontSize: 10 }} />
+        <ReferenceLine y={80} stroke={C.forest} strokeDasharray="3 3" strokeOpacity={0.55}
+          label={{ value: 'dia 80', position: 'insideBottomRight', fill: C.forest, fontSize: 10 }} />
+        <Tooltip
+          contentStyle={{ background: C.cream, border: `1px solid ${C.rule}`, borderRadius: 2, fontFamily: 'Inter Tight', fontSize: 12 }}
+          labelFormatter={(d) => fmtDate(d)}
+          formatter={(v, name) => [v, name === 'systolic' ? 'Systolic' : 'Diastolic']}
+        />
+        <Line type="monotone" dataKey="systolic" name="systolic" stroke={C.terracotta} strokeWidth={2}
+          dot={{ r: 3, fill: C.terracotta, stroke: 'none' }} activeDot={{ r: 4 }} isAnimationActive={false} />
+        <Line type="monotone" dataKey="diastolic" name="diastolic" stroke={C.ink} strokeWidth={2}
+          dot={{ r: 3, fill: C.ink, stroke: 'none' }} activeDot={{ r: 4 }} isAnimationActive={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+
+function BPLogForm({ onSaved }) {
+  const [systolic, setSystolic] = useState('')
+  const [diastolic, setDiastolic] = useState('')
+  const [restingHr, setRestingHr] = useState('')
+  const [date, setDate] = useState(TODAY_ISO)
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [savedAt, setSavedAt] = useState(null)
+
+  const save = async () => {
+    setError(null)
+    const sys = parseInt(systolic, 10)
+    const dia = parseInt(diastolic, 10)
+    if (!Number.isFinite(sys) || !Number.isFinite(dia)) {
+      setError('Systolic and diastolic are both required.')
+      return
+    }
+    if (!date) { setError('Pick a date.'); return }
+    const hr = restingHr.trim() === '' ? null : parseInt(restingHr, 10)
+    const noteVal = note.trim() === '' ? null : note.trim()
+
+    setSaving(true)
+    try {
+      // Upsert on (user_id, recorded_on): re-query so we never create a
+      // duplicate date row even if the cached list is stale.
+      const existing = await db.select('vitals_log', {
+        user_id: `eq.${USER_ID}`, recorded_on: `eq.${date}`, limit: 1
+      })
+      if (existing && existing.length) {
+        // Never overwrite an existing non-null value with null — only send
+        // the optional fields when the user actually provided them.
+        const patch = { systolic_bp: sys, diastolic_bp: dia }
+        if (hr != null) patch.resting_hr = hr
+        if (noteVal != null) patch.notes = noteVal
+        await db.update('vitals_log', `id=eq.${existing[0].id}`, patch)
+      } else {
+        await db.insert('vitals_log', {
+          user_id: USER_ID,
+          recorded_on: date,
+          systolic_bp: sys,
+          diastolic_bp: dia,
+          resting_hr: hr,
+          notes: noteVal
+        })
+      }
+      setSystolic(''); setDiastolic(''); setRestingHr(''); setNote(''); setDate(TODAY_ISO)
+      setSavedAt(new Date())
+      onSaved()
+    } catch (e) {
+      console.error('BP save failed', e)
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const preview = bpStatus(parseInt(systolic, 10) || null, parseInt(diastolic, 10) || null)
+
+  return (
+    <div className="card" style={{ padding: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <h2 className="display" style={{ fontSize: 24, margin: 0 }}>Log a reading</h2>
+        {preview && (
+          <span className="pill" style={{ color: preview.color, background: `${preview.color}14`, border: `1px solid ${preview.color}40` }}>
+            {preview.label}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+        <Field label="Systolic (mmHg)">
+          <input className="input" type="number" inputMode="numeric" placeholder="120"
+            value={systolic} onChange={e => setSystolic(e.target.value)} />
+        </Field>
+        <Field label="Diastolic (mmHg)">
+          <input className="input" type="number" inputMode="numeric" placeholder="80"
+            value={diastolic} onChange={e => setDiastolic(e.target.value)} />
+        </Field>
+        <Field label="Resting heart rate (optional)">
+          <input className="input" type="number" inputMode="numeric" placeholder="bpm"
+            value={restingHr} onChange={e => setRestingHr(e.target.value)} />
+        </Field>
+        <Field label="Date">
+          <input className="input" type="date" max={TODAY_ISO}
+            value={date} onChange={e => setDate(e.target.value)} />
+        </Field>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <Field label="Note (optional)">
+          <textarea className="input" rows={2} placeholder="Context — time of day, after coffee, etc."
+            value={note} onChange={e => setNote(e.target.value)} />
+        </Field>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 24, borderTop: `1px solid ${C.rule}` }}>
+        <div style={{ minHeight: 16 }}>
+          {error && <span className="mono" style={{ fontSize: 11, color: C.terracotta }}>{error}</span>}
+          {!error && savedAt && <span className="mono" style={{ fontSize: 11, color: C.forest }}>SAVED {savedAt.toLocaleTimeString()}</span>}
+        </div>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>
+          <Plus size={14} /> {saving ? 'Saving…' : 'Save reading'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function BloodPressureTab({ data, refresh }) {
+  const bpRows = useMemo(
+    () => (data.vitals || []).filter(hasBP).map(v => ({
+      date: v.recorded_on,
+      systolic: v.systolic_bp,
+      diastolic: v.diastolic_bp,
+      resting_hr: v.resting_hr,
+      notes: v.notes
+    })),
+    [data.vitals]
+  )
+  // vitals arrive ordered recorded_on.desc; chart wants ascending.
+  const chartRows = useMemo(() => [...bpRows].reverse(), [bpRows])
+  const latest = bpRows[0] || null
+  const status = latest ? bpStatus(latest.systolic, latest.diastolic) : null
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="02 — Blood Pressure"
+        title="Blood pressure."
+        subtitle="Log systolic, diastolic, and resting heart rate. Lower in range is the goal — status reflects the more severe of the two numbers."
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, marginBottom: 40 }}>
+        <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column' }}>
+          <div className="label-eyebrow">Latest reading</div>
+          {latest ? (
+            <>
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span className="num" style={{ fontSize: 52, lineHeight: 1, color: status?.color || C.ink }}>
+                  {latest.systolic} / {latest.diastolic}
+                </span>
+              </div>
+              <div className="mono" style={{ fontSize: 11, color: C.muted, marginTop: 6, textTransform: 'uppercase' }}>
+                {fmtDate(latest.date)}{latest.resting_hr != null ? ` · ${latest.resting_hr} bpm resting` : ''}
+              </div>
+              {status && (
+                <div style={{ marginTop: 16 }}>
+                  <span className="pill" style={{ color: status.color, background: `${status.color}14`, border: `1px solid ${status.color}40` }}>
+                    {status.label}
+                  </span>
+                  <div style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>{status.note}</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ marginTop: 12, fontSize: 14, color: C.muted, fontStyle: 'italic' }}>
+              No readings yet.
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div className="label-eyebrow">Trend — systolic & diastolic</div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 11, color: C.muted }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 10, height: 2, background: C.terracotta, display: 'inline-block' }} /> Systolic
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 10, height: 2, background: C.ink, display: 'inline-block' }} /> Diastolic
+              </span>
+            </div>
+          </div>
+          <BPTrendChart rows={chartRows} />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 40 }}>
+        <BPLogForm onSaved={refresh} />
+      </div>
+
+      {bpRows.length > 0 && (
+        <div>
+          <h3 className="display" style={{ fontSize: 20, marginBottom: 12 }}>Recent readings</h3>
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <table className="zapp-table">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Reading</th><th>Status</th><th>Resting HR</th><th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bpRows.slice(0, 20).map((r, i) => {
+                  const s = bpStatus(r.systolic, r.diastolic)
+                  return (
+                    <tr key={i}>
+                      <td className="mono" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>
+                      <td className="num" style={{ fontSize: 16 }}>{r.systolic} / {r.diastolic}</td>
+                      <td>
+                        {s && (
+                          <span className="pill" style={{ color: s.color, background: `${s.color}14`, border: `1px solid ${s.color}40` }}>
+                            {s.label}
+                          </span>
+                        )}
+                      </td>
+                      <td className="mono">{r.resting_hr != null ? `${r.resting_hr} bpm` : '—'}</td>
+                      <td style={{ color: C.muted, maxWidth: 240 }}>{r.notes || '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -3225,6 +3501,7 @@ export default function App() {
         )}
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 48px' }}>
           {tab === 'overview' && <Dashboard data={data} setTab={setTab} setMarkerCode={setMarkerCode} refresh={loadAll} />}
+          {tab === 'bloodpressure' && <BloodPressureTab data={data} refresh={loadAll} />}
           {tab === 'markers' && <MarkersList data={data} setTab={setTab} setMarkerCode={setMarkerCode} />}
           {tab === 'marker_detail' && markerCode && <MarkerDetail data={data} code={markerCode} setTab={setTab} />}
           {tab === 'medications' && <Medications data={data} />}
