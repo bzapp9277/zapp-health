@@ -2530,7 +2530,7 @@ function DrinkLogForm({ drinkTypes, onSaved, onDeleted, editEntry, prefillDate, 
     } finally { setSaving(false); setConfirming(false) }
   }
 
-  const categories = [...new Set(drinkTypes.map(t => t.category))].sort()
+  const categories = [...new Set(drinkTypes.map(t => t.category).filter(Boolean))].sort()
 
   return (
     <div className="card" style={{ padding: 24, marginBottom: 24, borderLeft: isEditing ? `3px solid ${C.amber}` : undefined }}>
