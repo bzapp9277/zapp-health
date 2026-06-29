@@ -47,9 +47,9 @@ const RESOURCE_TYPES = [
 ]
 
 const SANDBOX_CREDS = {
-  username: 'fhirjason',
+  username: 'fhircamila',
   password: 'epicepic1',
-  patient: 'Jason Argonaut',
+  patient: 'Camila Lopez (rich R4 sandbox patient — has labs + vitals)',
 }
 
 async function main() {
