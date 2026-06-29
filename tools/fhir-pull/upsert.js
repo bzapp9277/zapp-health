@@ -1,11 +1,18 @@
 /**
  * Parse FHIR R4 resources into flat rows and upsert into Supabase fhir_* tables.
  * Uses the service role key so no RLS gets in the way for these new tables.
+ *
+ * Sandbox mode (FHIR_ENV=sandbox): prefixes all IDs with "SANDBOX_" and sets
+ * owner='SANDBOX_TEST' so test records never collide with production and are
+ * trivially deletable later.
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const BATCH = 100
+
+const OWNER = process.env.FHIR_ENV === 'sandbox' ? 'SANDBOX_TEST' : 'PRODUCTION'
+const idFor = (id) => process.env.FHIR_ENV === 'sandbox' ? `SANDBOX_${id}` : id
 
 // ── Supabase REST upsert ──────────────────────────────────────────────────────
 
@@ -61,9 +68,10 @@ function parseObservation(obs, patientId) {
   else if (obs.valueBoolean != null) valueStr = String(obs.valueBoolean)
 
   return {
-    id: obs.id,
+    id: idFor(obs.id),
     patient_id: patientId,
     fhir_resource: obs,
+    owner: OWNER,
     code_system: code?.system ?? null,
     code_value: code?.code ?? null,
     code_display: code?.display ?? obs.code?.text ?? null,
@@ -85,9 +93,10 @@ function parseMedication(med, patientId) {
     ?? null
   const dosage = first(med.dosageInstruction)
   return {
-    id: med.id,
+    id: idFor(med.id),
     patient_id: patientId,
     fhir_resource: med,
+    owner: OWNER,
     medication_display: display,
     status: med.status ?? null,
     intent: med.intent ?? null,
@@ -104,9 +113,10 @@ function parseCondition(cond, patientId) {
     ? cond.onsetDateTime.slice(0, 10)
     : cond.onsetPeriod?.start?.slice(0, 10) ?? null
   return {
-    id: cond.id,
+    id: idFor(cond.id),
     patient_id: patientId,
     fhir_resource: cond,
+    owner: OWNER,
     code_display: codingDisplay(cond.code),
     clinical_status: codeValue(cond.clinicalStatus),
     verification_status: codeValue(cond.verificationStatus),
@@ -116,9 +126,10 @@ function parseCondition(cond, patientId) {
 
 function parseAllergy(al, patientId) {
   return {
-    id: al.id,
+    id: idFor(al.id),
     patient_id: patientId,
     fhir_resource: al,
+    owner: OWNER,
     substance_display: codingDisplay(al.code),
     clinical_status: codeValue(al.clinicalStatus),
     criticality: al.criticality ?? null,
@@ -127,9 +138,10 @@ function parseAllergy(al, patientId) {
 
 function parseImmunization(imm, patientId) {
   return {
-    id: imm.id,
+    id: idFor(imm.id),
     patient_id: patientId,
     fhir_resource: imm,
+    owner: OWNER,
     vaccine_display: codingDisplay(imm.vaccineCode),
     occurrence_datetime: imm.occurrenceDateTime ?? null,
     status: imm.status ?? null,
@@ -139,9 +151,10 @@ function parseImmunization(imm, patientId) {
 function parseReport(rep, patientId) {
   const effective = rep.effectiveDateTime ?? rep.effectivePeriod?.start ?? null
   return {
-    id: rep.id,
+    id: idFor(rep.id),
     patient_id: patientId,
     fhir_resource: rep,
+    owner: OWNER,
     code_display: codingDisplay(rep.code),
     status: rep.status ?? null,
     effective_datetime: effective,
@@ -152,9 +165,10 @@ function parseReport(rep, patientId) {
 function parseProcedure(proc, patientId) {
   const performed = proc.performedDateTime ?? proc.performedPeriod?.start ?? null
   return {
-    id: proc.id,
+    id: idFor(proc.id),
     patient_id: patientId,
     fhir_resource: proc,
+    owner: OWNER,
     code_display: codingDisplay(proc.code),
     status: proc.status ?? null,
     performed_date: performed ? performed.slice(0, 10) : null,

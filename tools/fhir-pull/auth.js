@@ -1,6 +1,7 @@
 /**
- * SMART on FHIR standalone patient launch — OAuth2 + PKCE, public client
- * Manages token storage in .token.json for silent re-pulls.
+ * SMART on FHIR standalone patient launch — OAuth2 + PKCE, public client.
+ * Supports FHIR_ENV=sandbox for Epic's non-production sandbox (separate client
+ * ID, separate token file, separate endpoints) without touching production config.
  */
 import { createServer } from 'http'
 import { randomBytes, createHash } from 'crypto'
@@ -10,18 +11,31 @@ import { fileURLToPath } from 'url'
 import { exec } from 'child_process'
 
 const __dir = dirname(fileURLToPath(import.meta.url))
-const TOKEN_FILE = resolve(__dir, '.token.json')
 const REDIRECT_URI = 'http://127.0.0.1:8765/callback'
 const CALLBACK_PORT = 8765
 
-const AUTH_URL = 'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/authorize'
-const TOKEN_URL = 'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/token'
-const FHIR_BASE = 'https://sehproxy.stelizabeth.com/arr-fhir/SEH/api/FHIR/R4'
+// ── Environment-specific config ───────────────────────────────────────────────
+// Production: St. Elizabeth Healthcare, Epic instance at sehproxy.stelizabeth.com
+const PROD = {
+  clientId:  () => process.env.FHIR_CLIENT_ID,
+  authUrl:   'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/authorize',
+  tokenUrl:  'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/token',
+  fhirBase:  'https://sehproxy.stelizabeth.com/arr-fhir/SEH/api/FHIR/R4',
+  tokenFile: resolve(__dir, '.token.json'),
+}
 
-// SMART scopes — request only the APIs registered in the Epic app.
-// Procedure omitted: not in the initial set of registered APIs.
-// Epic will only grant scopes the app was registered for; requesting extras
-// causes the authorize request to fail rather than silently downscoping.
+// Sandbox: Epic's public non-production environment at fhir.epic.com
+// Non-production client ID registered on open.epic.com for sandbox testing.
+// Endpoints discovered from https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4/.well-known/smart-configuration
+const SANDBOX = {
+  clientId:  () => 'e82e004c-84f9-4c8b-ba12-901e7192b70d',
+  authUrl:   'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize',
+  tokenUrl:  'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token',
+  fhirBase:  'https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4',
+  tokenFile: resolve(__dir, '.token.sandbox.json'),
+}
+
+// SMART scopes requested for both environments
 const SCOPES = [
   'openid',
   'fhirUser',
@@ -35,23 +49,25 @@ const SCOPES = [
   'patient/DiagnosticReport.read',
 ].join(' ')
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function generatePkce() {
   const verifier = randomBytes(32).toString('base64url')
   const challenge = createHash('sha256').update(verifier).digest('base64url')
   return { verifier, challenge }
 }
 
-function loadStoredToken() {
-  if (!existsSync(TOKEN_FILE)) return null
-  try { return JSON.parse(readFileSync(TOKEN_FILE, 'utf8')) } catch { return null }
+function loadStoredToken(tokenFile) {
+  if (!existsSync(tokenFile)) return null
+  try { return JSON.parse(readFileSync(tokenFile, 'utf8')) } catch { return null }
 }
 
-function saveToken(data) {
-  writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2), 'utf8')
+function saveToken(tokenFile, data) {
+  writeFileSync(tokenFile, JSON.stringify(data, null, 2), 'utf8')
 }
 
-async function doRefresh(refreshTok, clientId) {
-  const res = await fetch(TOKEN_URL, {
+async function doRefresh(refreshTok, tokenUrl, clientId) {
+  const res = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -79,15 +95,13 @@ function openBrowser(url) {
 function waitForCallback(expectedState) {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
-      const url = new URL(req.url, `http://localhost:${CALLBACK_PORT}`)
+      const url = new URL(req.url, `http://127.0.0.1:${CALLBACK_PORT}`)
 
       if (url.pathname !== '/callback') {
-        res.writeHead(404)
-        res.end()
-        return
+        res.writeHead(404); res.end(); return
       }
 
-      const code = url.searchParams.get('code')
+      const code  = url.searchParams.get('code')
       const state = url.searchParams.get('state')
       const error = url.searchParams.get('error')
 
@@ -97,15 +111,14 @@ body{font-family:-apple-system,sans-serif;background:#FAF7F0;color:#1A1815;paddi
 h2{font-family:Georgia,serif;font-size:28px;margin:0 0 16px;letter-spacing:-0.03em}
 p{color:#8B8579;line-height:1.6}
 </style></head><body>
-<h2>${ok ? 'Authorized ✓' : 'Authorization failed'}</h2>
-<p>${msg}</p>
+<h2>${ok ? 'Authorized ✓' : 'Authorization failed'}</h2><p>${msg}</p>
 </body></html>`
 
       server.close()
 
       if (error) {
         res.writeHead(400, { 'Content-Type': 'text/html' })
-        res.end(html(`${error}: ${url.searchParams.get('error_description') || 'Unknown error'}`, false))
+        res.end(html(`${error}: ${url.searchParams.get('error_description') || 'unknown'}`, false))
         reject(new Error(`OAuth error: ${error} — ${url.searchParams.get('error_description') || ''}`))
         return
       }
@@ -132,7 +145,6 @@ p{color:#8B8579;line-height:1.6}
 
     server.listen(CALLBACK_PORT, '127.0.0.1')
 
-    // 5-minute timeout
     setTimeout(() => {
       server.close()
       reject(new Error('Timed out waiting for OAuth callback (5 minutes)'))
@@ -140,7 +152,8 @@ p{color:#8B8579;line-height:1.6}
   })
 }
 
-async function doFullAuthFlow(clientId) {
+async function doFullAuthFlow(cfg) {
+  const clientId = cfg.clientId()
   const { verifier, challenge } = generatePkce()
   const state = randomBytes(16).toString('hex')
 
@@ -152,10 +165,10 @@ async function doFullAuthFlow(clientId) {
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
-    aud: FHIR_BASE,
+    aud: cfg.fhirBase,
   })
 
-  const authorizeUrl = `${AUTH_URL}?${params}`
+  const authorizeUrl = `${cfg.authUrl}?${params}`
 
   console.log('Opening Epic MyChart in your browser...')
   console.log('(If it does not open automatically, paste this URL:)')
@@ -165,8 +178,7 @@ async function doFullAuthFlow(clientId) {
 
   const code = await waitForCallback(state)
 
-  // Exchange code for tokens
-  const tokenRes = await fetch(TOKEN_URL, {
+  const tokenRes = await fetch(cfg.tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -180,8 +192,6 @@ async function doFullAuthFlow(clientId) {
 
   if (!tokenRes.ok) {
     const text = await tokenRes.text()
-    // Surface the full body so we can tell "client_id not recognized" from
-    // "invalid_grant" from network errors
     throw new Error(`Token exchange failed (${tokenRes.status}): ${text}`)
   }
 
@@ -194,8 +204,7 @@ async function doFullAuthFlow(clientId) {
   if (!patientId) {
     throw new Error(
       'Token response had no patient context (tok.patient missing). ' +
-      'Possible causes: client not yet distributed to production by Epic, ' +
-      'or app not configured for standalone patient launch. ' +
+      'Ensure app is configured for standalone patient launch. ' +
       `Full token response: ${JSON.stringify(tok)}`
     )
   }
@@ -204,9 +213,18 @@ async function doFullAuthFlow(clientId) {
   return { tok, patientId }
 }
 
+// ── Public export ─────────────────────────────────────────────────────────────
+
 export async function getAccessToken() {
-  const clientId = process.env.FHIR_CLIENT_ID
-  const stored = loadStoredToken()
+  const isSandbox = process.env.FHIR_ENV === 'sandbox'
+  const cfg = isSandbox ? SANDBOX : PROD
+  const clientId = cfg.clientId()
+
+  if (!isSandbox && !clientId) {
+    throw new Error('FHIR_CLIENT_ID not set in .env — required for production mode')
+  }
+
+  const stored = loadStoredToken(cfg.tokenFile)
 
   // Use valid cached access token
   if (stored?.access_token && stored.expires_at && Date.now() < stored.expires_at - 60_000) {
@@ -219,14 +237,14 @@ export async function getAccessToken() {
   if (stored?.refresh_token) {
     console.log('Refreshing access token...')
     try {
-      const tok = await doRefresh(stored.refresh_token, clientId)
+      const tok = await doRefresh(stored.refresh_token, cfg.tokenUrl, clientId)
       const refreshed = {
         access_token: tok.access_token,
         refresh_token: tok.refresh_token || stored.refresh_token,
         patient_id: tok.patient || stored.patient_id,
         expires_at: Date.now() + (tok.expires_in || 3600) * 1000,
       }
-      saveToken(refreshed)
+      saveToken(cfg.tokenFile, refreshed)
       console.log('✓ Token refreshed.')
       return { accessToken: refreshed.access_token, patientId: refreshed.patient_id }
     } catch (err) {
@@ -235,15 +253,22 @@ export async function getAccessToken() {
   }
 
   // Full browser-based auth flow
-  const { tok, patientId } = await doFullAuthFlow(clientId)
+  const { tok, patientId } = await doFullAuthFlow(cfg)
   const stored2 = {
     access_token: tok.access_token,
     refresh_token: tok.refresh_token ?? null,
     patient_id: patientId,
     expires_at: Date.now() + (tok.expires_in || 3600) * 1000,
   }
-  saveToken(stored2)
-  console.log('✓ Tokens saved to .token.json for future silent pulls.')
+  saveToken(cfg.tokenFile, stored2)
+  console.log(`✓ Tokens saved to ${isSandbox ? '.token.sandbox.json' : '.token.json'} for future silent pulls.`)
 
   return { accessToken: tok.access_token, patientId }
+}
+
+// Expose config for index.js to read FHIR base URL
+export function getFhirBase() {
+  return process.env.FHIR_ENV === 'sandbox'
+    ? SANDBOX.fhirBase
+    : PROD.fhirBase
 }

@@ -9,3 +9,4 @@ supabase/.temp/
 # FHIR pull — secrets and health data, local only
 tools/fhir-pull/.env
 tools/fhir-pull/.token.json
+tools/fhir-pull/.token.sandbox.json
