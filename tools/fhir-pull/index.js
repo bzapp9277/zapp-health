@@ -30,7 +30,7 @@ if (existsSync(envFile)) {
   }
 }
 
-const { getAccessToken, getFhirBase } = await import('./auth.js')
+const { getAccessToken, getFhirBase, getResolvedConfig } = await import('./auth.js')
 const { fetchAllResources } = await import('./fhir.js')
 const { upsertAll } = await import('./upsert.js')
 
@@ -55,9 +55,22 @@ const SANDBOX_CREDS = {
 async function main() {
   const isSandbox = process.env.FHIR_ENV === 'sandbox'
   const fhirBase = getFhirBase()
+  const cfg = getResolvedConfig()
 
   console.log('=== Zapp Health · FHIR Pull ===')
-  console.log(`Mode: ${isSandbox ? 'SANDBOX (Epic fhir.epic.com)' : 'PRODUCTION (St. Elizabeth Healthcare)'}`)
+  console.log()
+
+  // ── Pre-flight verification block ──────────────────────────────────────────
+  console.log('┌─────────────────────────────────────────────────────────────────┐')
+  console.log('│  CONFIG VERIFICATION                                            │')
+  console.log(`│  Mode        : ${cfg.mode.padEnd(50)} │`)
+  console.log(`│  Client ID   : ${cfg.clientId.padEnd(50)} │`)
+  console.log(`│  Auth host   : ${cfg.authHost.padEnd(50)} │`)
+  console.log(`│  Redirect    : ${cfg.redirectUri.padEnd(50)} │`)
+  console.log(`│  Aud         : ${cfg.aud.slice(0, 50).padEnd(50)} │`)
+  console.log(`│  Token file  : ${cfg.tokenFile.split(/[\\/]/).pop().padEnd(50)} │`)
+  console.log(`│  Sandbox tok : ${existsSync(cfg.sandboxTokenFile) ? 'EXISTS (not used in this mode)' : 'absent'.padEnd(50)} │`)
+  console.log('└─────────────────────────────────────────────────────────────────┘')
   console.log()
 
   if (!isSandbox && !process.env.FHIR_CLIENT_ID) {

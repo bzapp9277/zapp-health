@@ -11,7 +11,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const BATCH = 100
 
-const OWNER = process.env.FHIR_ENV === 'sandbox' ? 'SANDBOX_TEST' : 'PRODUCTION'
+const OWNER = process.env.FHIR_ENV === 'sandbox' ? 'SANDBOX_TEST' : 'brad'
 const idFor = (id) => process.env.FHIR_ENV === 'sandbox' ? `SANDBOX_${id}` : id
 
 // ── Supabase REST upsert ──────────────────────────────────────────────────────

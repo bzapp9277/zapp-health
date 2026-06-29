@@ -16,11 +16,12 @@ const CALLBACK_PORT = 8765
 
 // ── Environment-specific config ───────────────────────────────────────────────
 // Production: St. Elizabeth Healthcare, Epic instance at sehproxy.stelizabeth.com
+// Canonical FHIR base confirmed from CapabilityStatement url field — /SEH/ alias omitted.
 const PROD = {
   clientId:  () => process.env.FHIR_CLIENT_ID,
   authUrl:   'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/authorize',
   tokenUrl:  'https://sehproxy.stelizabeth.com/arr-fhir/oauth2/token',
-  fhirBase:  'https://sehproxy.stelizabeth.com/arr-fhir/SEH/api/FHIR/R4',
+  fhirBase:  'https://sehproxy.stelizabeth.com/arr-fhir/api/FHIR/R4',
   tokenFile: resolve(__dir, '.token.json'),
 }
 
@@ -271,4 +272,22 @@ export function getFhirBase() {
   return process.env.FHIR_ENV === 'sandbox'
     ? SANDBOX.fhirBase
     : PROD.fhirBase
+}
+
+// Expose resolved config for pre-flight verification printing
+export function getResolvedConfig() {
+  const isSandbox = process.env.FHIR_ENV === 'sandbox'
+  const cfg = isSandbox ? SANDBOX : PROD
+  return {
+    mode: isSandbox ? 'SANDBOX' : 'PRODUCTION',
+    clientId: cfg.clientId(),
+    authHost: new URL(cfg.authUrl).host,
+    authUrl: cfg.authUrl,
+    tokenUrl: cfg.tokenUrl,
+    fhirBase: cfg.fhirBase,
+    redirectUri: REDIRECT_URI,
+    aud: cfg.fhirBase,
+    tokenFile: cfg.tokenFile,
+    sandboxTokenFile: SANDBOX.tokenFile,
+  }
 }
