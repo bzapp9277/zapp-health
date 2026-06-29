@@ -1,5 +1,5 @@
 # Zapp Health — System Brain Document
-**Last updated:** 2026-06-18 · **Owner:** Brad Zapp (DOB 1977-09-02)
+**Last updated:** 2026-06-29 · **Owner:** Brad Zapp (DOB 1977-09-02)
 
 > **How to use this:** Single source of truth for Brad's personal health system. Drop it into a new Claude chat or hand it to Claude Code to get oriented cold. Captures *what exists, why it was built that way, and what's still open.* This is the LIVING map — update it in place when something material changes (don't make new copies). Daily play-by-play lives in dated session logs in `docs/`.
 
@@ -42,6 +42,8 @@ Brad built a personal health-tracking web app ("zapp-health") to manage drinking
 
 ### Tables (live counts, 2026-06-07)
 lab_results (295) · markers (58, has `better_direction`) · drink_types (15) · alcohol_log (7 — baseline week only) · drink_rankings (2) · briefings (2) · health_inbox (3) · health_metrics (2, dormant) · providers (1) · screening_schedule (3) · session_logs (2). Also: lab_panels, medications, medication_doses, treatments, health_events, doctor_questions, reports, profiles, vitals_log + views (v_marker_scorecard, v_latest_marker_values, v_active_medications).
+
+**FHIR tables (added 2026-06-29, all have `owner` column):** fhir_observations · fhir_medications · fhir_conditions · fhir_allergies · fhir_immunizations · fhir_reports · fhir_procedures. View: `v_fhir_labs` (lab observations, same shape as v_latest_marker_values). Currently populated with sandbox test data (`owner='SANDBOX_TEST'`); production Brad rows (`owner='brad'`) pending client provisioning. See §13.
 
 ### Front-end data modules (code, not DB)
 - `src/data/wellnessCalendar.js` — **single source of truth for the Health & Wellness Calendar** (see §8). 70 events, hand-authored, version-controlled with the code. NOT in Supabase (yet — see Open Threads).
@@ -132,6 +134,8 @@ Brad's standing rule: **health data is never silently overwritten.** Uploaded do
 | Wellness calendar | code data module; PDF → Dawna → she books real calendar | Manual (no auto-booking) |
 | Providers & screening cadence | edited via Supabase connector (chat) | Manual |
 | Session memory | `session_logs` table (Supabase) + `docs/` session logs | Manual |
+| **FHIR record pull** | `node tools/fhir-pull/index.js` — one browser login (Brad's St. E MyChart), then silent refresh-token re-runs; upserts to fhir_* tables `owner='brad'` | Manual trigger / future: weekly auto-job |
+| **FHIR sandbox** | `$env:FHIR_ENV="sandbox"; node tools/fhir-pull/index.js` — test patient Camila Lopez | Manual (test only) |
 
 ---
 
@@ -152,6 +156,32 @@ Brad's standing rule: **health data is never silently overwritten.** Uploaded do
 6. **markers.personal_notes column:** add it + hover note for personalized colors. Nice-to-have.
 7. **NEW — Calendar lives in code, not DB:** move the 70 events into a Supabase table when in-app editing (or Dawna/automated editing) is needed. Until then, edits = Claude Code change to `wellnessCalendar.js`. *(Update 2026-06-07: scheduling has begun migrating to Supabase via the new `providers` + `screening_schedule` tables; display calendar still lives in code.)*
 8. **NEW — Direct calendar booking (future):** the "book these onto my real calendar automatically" version needs calendar write scope (Gmail send and/or Graph write). Tie to the security session; until then, Dawna is the write layer via the save-the-date PDF.
+9. **FHIR production pull — blocked on St. Elizabeth client provisioning (2026-06-29):** Epic app `3641578b-afd2-4d0a-a1cd-715a2a391123` is marked Production Ready (USCDI v3 auto-distribution); St. Elizabeth's Epic instance not yet provisioned it — returns "OAuth2 Error: something went wrong trying to authorize the client" before login. Code is confirmed correct (sandbox with different client ID fully proven). **Re-run daily until the authorize URL shows a login form instead of the error.** Interim: Brad requested a MyChart Computer-Readable Export (FHIR file) — when it arrives, ingest into fhir_* tables tagged `owner='brad'`.
+10. **Katherine side-by-side (future):** once Brad's data is in, add Katherine with her own St. E MyChart login, `owner='katherine'`, and build side-by-side biomarker views + a "Sync my records" button + weekly auto-job.
+
+---
+
+## 13. FHIR record pull — status as of 2026-06-29
+
+**Goal:** pull Brad's St. Elizabeth records into the fhir_* tables so the app shows real clinical data alongside manual lab entries. Owner-tagged for multi-person future (Brad + Katherine).
+
+**Tool:** `tools/fhir-pull/` — zero-dependency Node CLI, runs `node tools/fhir-pull/index.js`. Secrets in gitignored `.env`. Supports two modes:
+- **Production** (default): client ID `3641578b-afd2-4d0a-a1cd-715a2a391123`, endpoint `sehproxy.stelizabeth.com/arr-fhir/api/FHIR/R4`, rows tagged `owner='brad'`.
+- **Sandbox** (`FHIR_ENV=sandbox`): client ID `e82e004c-84f9-4c8b-ba12-901e7192b70d`, endpoint `fhir.epic.com`, rows tagged `owner='SANDBOX_TEST'`.
+
+**Status:**
+- Pipeline proven end-to-end in sandbox: 248 observations (labs + vitals) + conditions/meds/allergies/immunizations/reports/procedures upserted; `v_fhir_labs` view populated and queryable.
+- Production blocked: St. Elizabeth's Epic instance has not yet provisioned the production client ID. Returns Epic "OAuth2 Error — something went wrong trying to authorize the client" before any login form loads. This is a provisioning delay (auto-distribution window), not a code bug.
+- Interim path: MyChart Computer-Readable Export — Brad requested the FHIR export file from St. Elizabeth MyChart; when it arrives, ingest it into fhir_* tables tagged `owner='brad'` using a one-off script.
+
+**Endpoint facts:**
+- St. Elizabeth FHIR R4 canonical base: `https://sehproxy.stelizabeth.com/arr-fhir/api/FHIR/R4`
+- Authorize: `https://sehproxy.stelizabeth.com/arr-fhir/oauth2/authorize`
+- Token: `https://sehproxy.stelizabeth.com/arr-fhir/oauth2/token`
+- MyChart portal: `mychart.stelizabeth.com`
+- Apple Health Records: no St. Elizabeth match (Apple's narrower program); not a signal that FHIR is closed.
+
+**Once production is live:** one browser login → refresh token saved to `.token.json` → all future runs are silent (no browser). Add to a weekly GitHub Actions cron for fully automatic sync.
 
 ---
 
