@@ -147,8 +147,8 @@ p{color:#8B8579;line-height:1.6}
 
     setTimeout(() => {
       server.close()
-      reject(new Error('Timed out waiting for OAuth callback (5 minutes)'))
-    }, 5 * 60 * 1000)
+      reject(new Error('Timed out waiting for OAuth callback (10 minutes)'))
+    }, 10 * 60 * 1000)
   })
 }
 
@@ -174,7 +174,7 @@ async function doFullAuthFlow(cfg) {
   console.log('(If it does not open automatically, paste this URL:)')
   console.log(authorizeUrl)
   openBrowser(authorizeUrl)
-  console.log('\nWaiting for authorization (5-minute window)...')
+  console.log('\nWaiting for authorization (10-minute window)...')
 
   const code = await waitForCallback(state)
 
